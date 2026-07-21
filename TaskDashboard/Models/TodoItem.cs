@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace TaskDashboard.Models;
 
 public class TodoItem
@@ -8,9 +10,16 @@ public class TodoItem
 
     public bool IsDone { get; set; }
 
+    /// <summary>When work on the task actually began. Kept after completion so
+    /// history shows the real span; cleared if the task is un-done.</summary>
+    public DateTimeOffset? StartedAt { get; set; }
+
     /// <summary>When the task was marked done. Null while unfinished, and for
     /// tasks completed before this field existed.</summary>
     public DateTimeOffset? CompletedAt { get; set; }
+
+    [JsonIgnore]
+    public bool IsInProgress => !IsDone && StartedAt is not null;
 
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

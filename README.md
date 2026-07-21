@@ -29,6 +29,13 @@ added later by restoring their target frameworks in
   (the following planned slots), and **Done** (what you finished, when) — plus
   summary tiles for tasks left, estimated workload, overdue count, and
   completions today
+- **Start tracking**: press Start on a task (from the dashboard's Now panel or
+  any task row) and it becomes the thing you are doing — one task at a time,
+  starting another switches. The planner anchors a started task at *now* for
+  its remaining time (estimate minus elapsed) and plans everything else after
+  it, and completing a started task records the real [started, finished] span,
+  which the calendar's history layer draws instead of guessing from the
+  estimate
 - Add, edit, and delete tasks — double-click a task or press **Edit** to change it inline
 - Each task carries a **deadline**, a **priority** (Low / Normal / High / Urgent), and an
   **estimated time to complete**; all three are optional except the title
@@ -47,6 +54,8 @@ added later by restoring their target frameworks in
 
 ## Roadmap
 
+- **Estimate calibration** — with real [started, finished] spans accumulating,
+  learn how your estimates compare to reality and let the planner correct for it
 - **Local notifications** for tasks that are due soon or overdue — the reason
   this is a MAUI app — on both Android and Windows
 - **Backend + sync** so tasks and notification state follow you across devices

@@ -156,19 +156,27 @@
             }
 
             var (top, height) = Clip(slot.Start, slot.End, dayStart, dayEnd);
-            var css = $"cal-block cal-slot cal-p-{task.Priority.ToString().ToLowerInvariant()}{(slot.MissesDeadline ? " missed" : "")}";
+            var css = $"cal-block cal-slot cal-p-{task.Priority.ToString().ToLowerInvariant()}{(slot.MissesDeadline ? " missed" : "")}{(task.IsInProgress ? " started" : "")}";
             var tooltip = slot.MissesDeadline
                 ? $"{task.Title} — planned {slot.Start.ToLocalTime():HH:mm}–{slot.End.ToLocalTime():HH:mm}, finishes after its deadline"
                 : $"{task.Title} — planned {slot.Start.ToLocalTime():HH:mm}–{slot.End.ToLocalTime():HH:mm}";
+            if (task.IsInProgress)
+            {
+                tooltip += " (in progress)";
+            }
 
             yield return new Block(top, height, css, slot.Start.ToLocalTime().ToString("HH:mm"), task.Title, tooltip);
         }
 
-        // What was actually done: a dimmed block ending at CompletedAt.
+        // What was actually done. When the task was started, [StartedAt,
+        // CompletedAt] is the real span; otherwise fall back to painting the
+        // estimate backwards from completion.
         foreach (var task in Todos.Items.Where(t => t.IsDone && t.CompletedAt is not null))
         {
             var end = task.CompletedAt!.Value.ToLocalTime();
-            var start = end - (task.EstimatedTime ?? Planner.DefaultEstimate);
+            var start = task.StartedAt is { } begun && begun < task.CompletedAt
+                ? begun.ToLocalTime()
+                : end - (task.EstimatedTime ?? Planner.DefaultEstimate);
             if (end <= dayStart || start >= dayEnd)
             {
                 continue;

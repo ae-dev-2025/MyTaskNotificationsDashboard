@@ -26,7 +26,27 @@
 <div class="panels">
     <section class="panel panel-now" aria-label="Now">
         <h2>Now</h2>
-        @if (CurrentSlot is { } current && TaskFor(current) is { } currentTask)
+        @if (Started is { } startedTask)
+        {
+            <div class="now-task">
+                <span class="badge priority priority-@startedTask.Priority.ToString().ToLowerInvariant()">
+                    @startedTask.Priority
+                </span>
+                <span class="now-title">@startedTask.Title</span>
+                <span class="now-time">@ProgressText(startedTask)</span>
+            </div>
+            <div class="now-actions">
+                <button type="button" class="btn btn-sm btn-primary btn-done-now"
+                        @onclick="() => CompleteAsync(startedTask.Id)">
+                    Done
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary btn-stop"
+                        @onclick="() => StopAsync(startedTask.Id)">
+                    Stop
+                </button>
+            </div>
+        }
+        else if (CurrentSlot is { } current && TaskFor(current) is { } currentTask)
         {
             <div class="now-task">
                 <span class="badge priority priority-@currentTask.Priority.ToString().ToLowerInvariant()">
@@ -40,6 +60,12 @@
                         <span class="now-late">— will miss its deadline</span>
                     }
                 </span>
+            </div>
+            <div class="now-actions">
+                <button type="button" class="btn btn-sm btn-primary btn-start"
+                        @onclick="() => StartAsync(currentTask.Id)">
+                    Start
+                </button>
             </div>
         }
         else
@@ -130,6 +156,8 @@
     private int DoneTodayCount => Data.Items.Count(i =>
         i.IsDone && i.CompletedAt is { } done && done.ToLocalTime().Date == DateTime.Today);
 
+    private TodoItem? Started => Data.Items.FirstOrDefault(i => i.IsInProgress);
+
     private PlannedSlot? CurrentSlot
     {
         get
@@ -137,6 +165,32 @@
             var now = DateTimeOffset.Now;
             return plan.FirstOrDefault(s => s.Start <= now && s.End > now);
         }
+    }
+
+    private async Task StartAsync(Guid id)
+    {
+        await Data.StartAsync(id);
+        Recompute();
+    }
+
+    private async Task StopAsync(Guid id)
+    {
+        await Data.StopAsync(id);
+        Recompute();
+    }
+
+    private async Task CompleteAsync(Guid id)
+    {
+        await Data.ToggleAsync(id);
+        Recompute();
+    }
+
+    private static string ProgressText(TodoItem task)
+    {
+        var started = task.StartedAt!.Value.ToLocalTime();
+        var elapsed = (int)(DateTimeOffset.Now - task.StartedAt.Value).TotalMinutes;
+        var remaining = (int)Planner.RemainingWork(task, DateTimeOffset.Now).TotalMinutes;
+        return $"started {started:HH:mm} · {elapsed}m in · ~{remaining}m left";
     }
 
     private List<PlannedSlot> UpcomingSlots

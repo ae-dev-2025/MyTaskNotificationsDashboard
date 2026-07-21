@@ -46,6 +46,16 @@
     color: #6c757d;
 }
 
+.task-item.started {
+    background: #f0f7ff;
+}
+
+.badge.inprogress {
+    background-color: #cfe2ff;
+    color: #084298;
+    font-weight: 600;
+}
+
 .task-meta {
     display: flex;
     flex-wrap: wrap;
