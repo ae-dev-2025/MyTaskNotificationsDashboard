@@ -1,68 +1,91 @@
 # My Task & Notifications Dashboard
 
 A personal dashboard for tracking tasks and surfacing notifications about them,
-built with **Blazor WebAssembly** (.NET 10).
+built with **.NET MAUI Blazor Hybrid** (.NET 10), targeting **Windows** and
+**Android**.
 
-> **Status: early.** The task list is built and working. Notifications and the
-> dashboard views described under [Roadmap](#roadmap) are not implemented yet.
-> Everything listed under [What works today](#what-works-today) is real and
-> tested; nothing below that line is.
+> **Status: early.** Task management is built, working, and tested end-to-end in
+> the native app. Notifications and the dashboard views described under
+> [Roadmap](#roadmap) are not implemented yet.
+
+## Why .NET MAUI?
+
+This project started as a Blazor WebAssembly web app. It was rebuilt as a .NET
+MAUI app because the goal of the project is **task notifications, and on Android
+that requires being a real app**: scheduled local notifications that fire when
+the app is closed, notification permissions, and delivery through the system
+tray are native-platform capabilities that a web page cannot reliably provide.
+
+MAUI Blazor Hybrid keeps the cost of that switch low — the UI is the same Razor
+component code the web version used, now hosted in a native WebView, so the app
+gained native capabilities without a UI rewrite. iOS/Mac Catalyst targets can be
+added later by restoring their target frameworks in
+`TaskDashboard/TaskDashboard.csproj` (a Mac build host is required to build them).
 
 ## What works today
-
-Task management, running entirely in the browser:
 
 - Add, edit, and delete tasks — double-click a task or press **Edit** to change it inline
 - Each task carries a **deadline**, a **priority** (Low / Normal / High / Urgent), and an
   **estimated time to complete**; all three are optional except the title
 - Overdue tasks are flagged, and the footer totals the estimated time still outstanding
 - Mark tasks done, filter by All / Active / Completed, and clear completed
-- Tasks persist in browser `localStorage`, so they survive a refresh
+- Tasks persist to a JSON file in the app's private data directory, written
+  atomically so an ill-timed crash cannot corrupt the list
 
 ## Roadmap
 
-The direction is a dashboard, not just a list:
-
+- **Local notifications** for tasks that are due soon or overdue — the reason
+  this is a MAUI app — on both Android and Windows
 - **Sorting and grouping** by deadline and priority — the list is currently in creation order
-- **In-app notifications** for tasks that are due soon or overdue
-- **Browser notifications** via the Notification API, so reminders land outside the tab
 - **Dashboard view** — summary tiles (due today, overdue, completed this week) alongside the list
 - **Backend + sync** so tasks and notification state follow you across devices
+- **iOS / Mac Catalyst** targets once a Mac build host is available
 
 ## Running it
 
+Windows (from the repository root):
+
 ```bash
-dotnet run --project TodoApp/TodoApp.csproj
+dotnet build TaskDashboard/TaskDashboard.csproj -f net10.0-windows10.0.19041.0 -t:Run
 ```
 
-Then open <http://localhost:5144>.
+Android (requires a running emulator or a connected device):
+
+```bash
+dotnet build TaskDashboard/TaskDashboard.csproj -f net10.0-android -t:Run
+```
+
+Requires the .NET 10 SDK with the `maui-windows` and `android` workloads
+(installed automatically with the Visual Studio MAUI workload).
 
 ## Project layout
 
 | Path | Purpose |
 | --- | --- |
-| `TodoApp/Models/TodoItem.cs` | The task model, including deadline, priority and estimate |
-| `TodoApp/Models/TaskPriority.cs` | Priority levels, serialized by name |
-| `TodoApp/Models/TaskForm.cs` | Editable shape of a task, shared by the add and edit forms |
-| `TodoApp/Models/TodoJsonContext.cs` | Source-generated JSON serializer |
-| `TodoApp/Services/TodoService.cs` | Task state and `localStorage` persistence |
-| `TodoApp/Components/TaskFields.razor` | The four task input fields, shared by both forms |
-| `TodoApp/Pages/Home.razor` | The task UI, served at `/` |
-
-The project directory is still named `TodoApp` from the original scaffold. It is
-kept as-is for now so the assembly name and namespaces stay stable; renaming it
-is a mechanical change best done in its own commit.
+| `TaskDashboard/Models/TodoItem.cs` | The task model, including deadline, priority and estimate |
+| `TaskDashboard/Models/TaskPriority.cs` | Priority levels, serialized by name |
+| `TaskDashboard/Models/TaskForm.cs` | Editable shape of a task, shared by the add and edit forms |
+| `TaskDashboard/Models/TodoJsonContext.cs` | Source-generated JSON serializer |
+| `TaskDashboard/Services/TodoService.cs` | Task state and file persistence |
+| `TaskDashboard/Components/TaskFields.razor` | The four task input fields, shared by both forms |
+| `TaskDashboard/Components/Pages/Home.razor` | The task UI |
+| `TaskDashboard/MauiProgram.cs` | App bootstrap and dependency injection |
 
 ## Notes
 
-Persistence is per-browser because a standalone WebAssembly app has no backend —
-tasks are not synced across devices. That is also why cross-device sync sits on
-the roadmap rather than being a small addition: it needs a server project.
+Tasks are stored per-device in `FileSystem.AppDataDirectory/tasks.json`. Saves
+write to a temp file and swap it in, so a crash mid-write leaves the previous
+list intact. Cross-device sync sits on the roadmap because it needs a server
+component.
 
 Serialization uses a source-generated `JsonSerializerContext` rather than
-reflection, since Blazor WebAssembly trims assemblies on publish and
-reflection-based serialization can break at runtime in ways a debug build
-won't reveal.
+reflection, so persistence keeps working under the trimming and AOT compilation
+MAUI applies to Android release builds.
+
+The UI is tested by driving the running native app over the Chrome DevTools
+Protocol: launching with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<port>`
+exposes the app's WebView2 to Playwright, which exercises add/edit/delete,
+validation, filters, and persistence across an app restart.
 
 ## Development
 
@@ -85,5 +108,5 @@ WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 PARTICULAR PURPOSE. See the [GNU General Public License](LICENSE) for more
 details.
 
-Bootstrap, bundled under `TodoApp/wwwroot/lib/bootstrap/`, is a separate work
-distributed under the MIT License and retains its own terms.
+Bootstrap, bundled under `TaskDashboard/wwwroot/lib/bootstrap/`, is a separate
+work distributed under the MIT License and retains its own terms.

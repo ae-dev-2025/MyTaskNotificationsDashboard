@@ -1,0 +1,207 @@
+@page "/"
+@inject TodoService Todos
+
+<h1>Tasks</h1>
+
+@* EditForm renders its own <form>, which does not carry this page's CSS scope,
+   so the layout classes live on plain wrapper elements instead. *@
+<div class="task-add">
+    <EditForm Model="draft" OnValidSubmit="AddAsync">
+        <DataAnnotationsValidator />
+        <TaskFields Form="draft" TitlePlaceholder="What needs doing?" />
+        <div class="task-add-actions">
+            <button type="submit" class="btn btn-primary">Add task</button>
+            <ValidationSummary />
+        </div>
+    </EditForm>
+</div>
+
+@if (Todos.Items.Count == 0)
+{
+    <p class="task-empty">Nothing here yet. Add your first task above.</p>
+}
+else
+{
+    <div class="task-filters" role="group" aria-label="Filter tasks">
+        @foreach (var option in Enum.GetValues<Filter>())
+        {
+            <button type="button"
+                    class="btn btn-sm @(filter == option ? "btn-secondary" : "btn-outline-secondary")"
+                    aria-pressed="@(filter == option)"
+                    @onclick="() => filter = option">
+                @option
+            </button>
+        }
+    </div>
+
+    <ul class="task-list">
+        @foreach (var item in Visible)
+        {
+            <li class="task-item @(item.IsDone ? "done" : null) @(item.IsOverdue(Now) ? "overdue" : null)"
+                @key="item.Id">
+                @if (editingId == item.Id)
+                {
+                    <div class="task-edit">
+                        <EditForm Model="editor" OnValidSubmit="() => SaveEditAsync(item.Id)">
+                            <DataAnnotationsValidator />
+                            <TaskFields @ref="editorFields" Form="editor" TitlePlaceholder="Task title" />
+                            <div class="task-edit-actions">
+                                <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CancelEdit">
+                                    Cancel
+                                </button>
+                                <ValidationSummary />
+                            </div>
+                        </EditForm>
+                    </div>
+                }
+                else
+                {
+                    <input type="checkbox"
+                           class="form-check-input"
+                           checked="@item.IsDone"
+                           aria-label="@($"Mark \"{item.Title}\" as {(item.IsDone ? "not done" : "done")}")"
+                           @onchange="() => Todos.ToggleAsync(item.Id)" />
+
+                    <div class="task-body" @ondblclick="() => BeginEdit(item)">
+                        <span class="task-title">@item.Title</span>
+
+                        <span class="task-meta">
+                            <span class="badge priority priority-@item.Priority.ToString().ToLowerInvariant()">
+                                @item.Priority
+                            </span>
+
+                            @if (item.Deadline is { } deadline)
+                            {
+                                <span class="meta deadline" title="Deadline">
+                                    @FormatDeadline(deadline)
+                                    @if (item.IsOverdue(Now))
+                                    {
+                                        <span class="overdue-flag">overdue</span>
+                                    }
+                                </span>
+                            }
+
+                            @if (item.EstimatedTime is { } estimate)
+                            {
+                                <span class="meta estimate" title="Estimated time to complete">
+                                    ~@FormatDuration(estimate)
+                                </span>
+                            }
+                        </span>
+                    </div>
+
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            aria-label="@($"Edit \"{item.Title}\"")"
+                            @onclick="() => BeginEdit(item)">
+                        Edit
+                    </button>
+
+                    <button type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            aria-label="@($"Delete \"{item.Title}\"")"
+                            @onclick="() => Todos.DeleteAsync(item.Id)">
+                        Delete
+                    </button>
+                }
+            </li>
+        }
+    </ul>
+
+    <div class="task-footer">
+        <span>
+            @RemainingCount @(RemainingCount == 1 ? "task" : "tasks") left
+            @if (RemainingEstimate > TimeSpan.Zero)
+            {
+                <span class="footer-estimate">· ~@FormatDuration(RemainingEstimate) estimated</span>
+            }
+        </span>
+        @if (Todos.Items.Any(i => i.IsDone))
+        {
+            <button type="button" class="btn btn-sm btn-link" @onclick="Todos.ClearCompletedAsync">
+                Clear completed
+            </button>
+        }
+    </div>
+}
+
+@code {
+    private enum Filter { All, Active, Completed }
+
+    private readonly TaskForm draft = new();
+    private readonly TaskForm editor = new();
+
+    private Filter filter = Filter.All;
+    private Guid? editingId;
+    private TaskFields? editorFields;
+    private bool focusEditor;
+
+    private static DateTimeOffset Now => DateTimeOffset.Now;
+
+    private int RemainingCount => Todos.Items.Count(i => !i.IsDone);
+
+    private TimeSpan RemainingEstimate => Todos.Items
+        .Where(i => !i.IsDone && i.EstimatedTime.HasValue)
+        .Aggregate(TimeSpan.Zero, (total, i) => total + i.EstimatedTime!.Value);
+
+    private IEnumerable<TodoItem> Visible => filter switch
+    {
+        Filter.Active => Todos.Items.Where(i => !i.IsDone),
+        Filter.Completed => Todos.Items.Where(i => i.IsDone),
+        _ => Todos.Items,
+    };
+
+    protected override Task OnInitializedAsync() => Todos.LoadAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (focusEditor && editorFields is not null)
+        {
+            focusEditor = false;
+            await editorFields.FocusTitleAsync();
+        }
+    }
+
+    private async Task AddAsync()
+    {
+        await Todos.AddAsync(draft.Title, draft.Deadline, draft.Priority, draft.EstimatedTime);
+        draft.Reset();
+    }
+
+    private void BeginEdit(TodoItem item)
+    {
+        var source = TaskForm.From(item);
+        editor.Title = source.Title;
+        editor.Deadline = source.Deadline;
+        editor.Priority = source.Priority;
+        editor.EstimatedMinutes = source.EstimatedMinutes;
+
+        editingId = item.Id;
+        focusEditor = true;
+    }
+
+    private void CancelEdit() => editingId = null;
+
+    private async Task SaveEditAsync(Guid id)
+    {
+        editingId = null;
+        await Todos.UpdateAsync(id, editor.Title, editor.Deadline, editor.Priority, editor.EstimatedTime);
+    }
+
+    private static string FormatDeadline(DateTimeOffset deadline) =>
+        deadline.ToLocalTime().ToString("ddd d MMM, HH:mm");
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        var hours = (int)duration.TotalHours;
+        var minutes = duration.Minutes;
+
+        if (hours > 0)
+        {
+            return minutes > 0 ? $"{hours}h {minutes}m" : $"{hours}h";
+        }
+
+        return $"{minutes}m";
+    }
+}
