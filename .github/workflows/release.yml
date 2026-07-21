@@ -47,8 +47,12 @@ jobs:
       - name: Restore signing keystore from secrets
         shell: pwsh
         run: |
+          # Strip any whitespace the secret may have picked up in transit —
+          # a stray newline must not break the decode.
+          $b64 = $env:KEYSTORE_B64 -replace '\s', ''
           [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\taskdashboard.keystore",
-            [Convert]::FromBase64String($env:KEYSTORE_B64))
+            [Convert]::FromBase64String($b64))
+          Write-Output "keystore: $((Get-Item "$env:RUNNER_TEMP\taskdashboard.keystore").Length) bytes"
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
 
