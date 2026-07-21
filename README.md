@@ -8,6 +8,18 @@ built with **.NET MAUI Blazor Hybrid** (.NET 10), targeting **Windows** and
 > the native app. Notifications and the dashboard views described under
 > [Roadmap](#roadmap) are not implemented yet.
 
+## ⚠️ Disclaimer
+
+**This is not production software.** It is a personal project in the earliest
+stage of development. It may crash, behave unpredictably, or lose any data you
+put into it, and it receives no support, no security review, and no guarantee
+of updates. **Use it entirely at your own risk.**
+
+This software is provided *as is*, without warranty of any kind, and the
+authors accept no liability for any damages arising from its use, to the
+fullest extent permitted by law — see sections 15 and 16 of the
+[GNU GPL v3](LICENSE) it is distributed under.
+
 ## Download
 
 | Platform | Download | Install |
