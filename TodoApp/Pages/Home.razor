@@ -1,0 +1,159 @@
+@page "/"
+@using System.ComponentModel.DataAnnotations
+@using TodoApp.Models
+@using TodoApp.Services
+@inject TodoService Todos
+
+<PageTitle>To-Do</PageTitle>
+
+<h1>To-Do</h1>
+
+<EditForm Model="draft" OnValidSubmit="AddAsync">
+    <DataAnnotationsValidator />
+    <div class="todo-add">
+        <InputText @bind-Value="draft.Title" class="form-control" placeholder="What needs doing?" aria-label="New to-do" />
+        <button type="submit" class="btn btn-primary">Add</button>
+    </div>
+    <ValidationMessage For="() => draft.Title" />
+</EditForm>
+
+@if (Todos.Items.Count == 0)
+{
+    <p class="todo-empty">Nothing here yet. Add your first task above.</p>
+}
+else
+{
+    <div class="todo-filters" role="group" aria-label="Filter tasks">
+        @foreach (var option in Enum.GetValues<Filter>())
+        {
+            <button type="button"
+                    class="btn btn-sm @(filter == option ? "btn-secondary" : "btn-outline-secondary")"
+                    aria-pressed="@(filter == option)"
+                    @onclick="() => filter = option">
+                @option
+            </button>
+        }
+    </div>
+
+    <ul class="todo-list">
+        @foreach (var item in Visible)
+        {
+            <li class="todo-item @(item.IsDone ? "done" : null)" @key="item.Id">
+                <input type="checkbox"
+                       class="form-check-input"
+                       checked="@item.IsDone"
+                       aria-label="@($"Mark \"{item.Title}\" as {(item.IsDone ? "not done" : "done")}")"
+                       @onchange="() => Todos.ToggleAsync(item.Id)" />
+
+                @if (editingId == item.Id)
+                {
+                    <input type="text"
+                           class="form-control form-control-sm"
+                           aria-label="Edit task"
+                           @bind="editText"
+                           @bind:event="oninput"
+                           @onkeydown="e => OnEditKeyAsync(e, item.Id)"
+                           @onblur="() => CommitEditAsync(item.Id)"
+                           @ref="editInput" />
+                }
+                else
+                {
+                    <span class="todo-title" @ondblclick="() => BeginEdit(item)" title="Double-click to edit">
+                        @item.Title
+                    </span>
+                }
+
+                <button type="button"
+                        class="btn btn-sm btn-outline-danger"
+                        aria-label="@($"Delete \"{item.Title}\"")"
+                        @onclick="() => Todos.DeleteAsync(item.Id)">
+                    Delete
+                </button>
+            </li>
+        }
+    </ul>
+
+    <div class="todo-footer">
+        <span>@RemainingCount @(RemainingCount == 1 ? "task" : "tasks") left</span>
+        @if (Todos.Items.Any(i => i.IsDone))
+        {
+            <button type="button" class="btn btn-sm btn-link" @onclick="Todos.ClearCompletedAsync">
+                Clear completed
+            </button>
+        }
+    </div>
+}
+
+@code {
+    private enum Filter { All, Active, Completed }
+
+    private readonly NewTodo draft = new();
+    private Filter filter = Filter.All;
+
+    private Guid? editingId;
+    private string editText = string.Empty;
+    private ElementReference editInput;
+    private bool focusEditInput;
+
+    private int RemainingCount => Todos.Items.Count(i => !i.IsDone);
+
+    private IEnumerable<TodoItem> Visible => filter switch
+    {
+        Filter.Active => Todos.Items.Where(i => !i.IsDone),
+        Filter.Completed => Todos.Items.Where(i => i.IsDone),
+        _ => Todos.Items,
+    };
+
+    protected override Task OnInitializedAsync() => Todos.LoadAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (focusEditInput)
+        {
+            focusEditInput = false;
+            await editInput.FocusAsync();
+        }
+    }
+
+    private async Task AddAsync()
+    {
+        await Todos.AddAsync(draft.Title);
+        draft.Title = string.Empty;
+    }
+
+    private void BeginEdit(TodoItem item)
+    {
+        editingId = item.Id;
+        editText = item.Title;
+        focusEditInput = true;
+    }
+
+    private async Task OnEditKeyAsync(KeyboardEventArgs e, Guid id)
+    {
+        if (e.Key == "Enter")
+        {
+            await CommitEditAsync(id);
+        }
+        else if (e.Key == "Escape")
+        {
+            editingId = null;
+        }
+    }
+
+    private async Task CommitEditAsync(Guid id)
+    {
+        if (editingId != id)
+        {
+            return;
+        }
+
+        editingId = null;
+        await Todos.RenameAsync(id, editText);
+    }
+
+    private sealed class NewTodo
+    {
+        [MaxLength(200, ErrorMessage = "Keep it under 200 characters.")]
+        public string Title { get; set; } = string.Empty;
+    }
+}
