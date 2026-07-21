@@ -5,6 +5,73 @@ namespace TaskDashboard.Services;
 /// <summary>A concrete span of time. Blocked periods expand into these.</summary>
 public readonly record struct TimeRange(DateTimeOffset Start, DateTimeOffset End);
 
+/// <summary>Expands blocked periods into the concrete ranges they occupy
+/// inside a window, in local time.</summary>
+public static class BlockedTime
+{
+    public static List<TimeRange> Expand(
+        IEnumerable<BlockedPeriod> periods,
+        DateTimeOffset from,
+        DateTimeOffset to) =>
+        [.. ExpandDetailed(periods, from, to).Select(x => x.Range)];
+
+    /// <summary>Like <see cref="Expand"/>, but keeps the source period with
+    /// each range so the calendar can label the shading.</summary>
+    public static List<(BlockedPeriod Period, TimeRange Range)> ExpandDetailed(
+        IEnumerable<BlockedPeriod> periods,
+        DateTimeOffset from,
+        DateTimeOffset to)
+    {
+        var ranges = new List<(BlockedPeriod, TimeRange)>();
+
+        foreach (var period in periods)
+        {
+            if (!period.IsRecurring)
+            {
+                if (period is { Start: { } start, End: { } end } && end > from && start < to)
+                {
+                    ranges.Add((period, new TimeRange(start, end)));
+                }
+
+                continue;
+            }
+
+            if (period.StartTime is not { } startTime || period.EndTime is not { } endTime)
+            {
+                continue;
+            }
+
+            // Walk one day beyond each edge so windows that cross midnight are
+            // caught from both sides.
+            var firstDay = from.ToLocalTime().Date.AddDays(-1);
+            var lastDay = to.ToLocalTime().Date.AddDays(1);
+
+            for (var day = firstDay; day <= lastDay; day = day.AddDays(1))
+            {
+                if (!period.Days.Contains(day.DayOfWeek))
+                {
+                    continue;
+                }
+
+                var occurrenceStart = Local(day + startTime.ToTimeSpan());
+                var occurrenceEnd = endTime > startTime
+                    ? Local(day + endTime.ToTimeSpan())
+                    : Local(day.AddDays(1) + endTime.ToTimeSpan());
+
+                if (occurrenceEnd > from && occurrenceStart < to)
+                {
+                    ranges.Add((period, new TimeRange(occurrenceStart, occurrenceEnd)));
+                }
+            }
+        }
+
+        return ranges;
+    }
+
+    private static DateTimeOffset Local(DateTime dt) =>
+        new(dt, TimeZoneInfo.Local.GetUtcOffset(dt));
+}
+
 /// <summary>A task placed into a specific span of time by the planner.</summary>
 public sealed record PlannedSlot(Guid TaskId, DateTimeOffset Start, DateTimeOffset End, bool MissesDeadline);
 

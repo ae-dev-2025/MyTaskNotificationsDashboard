@@ -1,5 +1,5 @@
 @page "/calendar"
-@inject TodoService Todos
+@inject DashboardService Todos
 @inject IJSRuntime JS
 @implements IDisposable
 
@@ -128,8 +128,20 @@
         var dayStart = new DateTimeOffset(day, DateTimeOffset.Now.Offset);
         var dayEnd = dayStart.AddDays(1);
 
-        // Planned slots for unfinished work.
-        var plan = Planner.Plan(Todos.Items, Array.Empty<TimeRange>(), DateTimeOffset.Now, PlanHorizon);
+        // Blocked time shades the background of the column.
+        foreach (var (period, range) in BlockedTime.ExpandDetailed(Todos.BlockedPeriods, dayStart, dayEnd))
+        {
+            var (top, height) = Clip(range.Start, range.End, dayStart, dayEnd);
+            yield return new Block(
+                top, height, "cal-block cal-blocked",
+                range.Start.ToLocalTime().ToString("HH:mm"),
+                period.Label,
+                $"Blocked: {period.Label}");
+        }
+
+        // Planned slots for unfinished work, routed around blocked time.
+        var busy = BlockedTime.Expand(Todos.BlockedPeriods, DateTimeOffset.Now, DateTimeOffset.Now + PlanHorizon);
+        var plan = Planner.Plan(Todos.Items, busy, DateTimeOffset.Now, PlanHorizon);
         foreach (var slot in plan)
         {
             if (slot.End <= dayStart || slot.Start >= dayEnd)

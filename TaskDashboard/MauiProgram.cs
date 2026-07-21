@@ -17,9 +17,9 @@ public static class MauiProgram
 
 		builder.Services.AddMauiBlazorWebView();
 
-		// Singleton, not scoped: the task list is app-wide state in a native
-		// app, and there is only ever one user in front of it.
-		builder.Services.AddSingleton<TodoService>();
+		// Singleton, not scoped: the dashboard data is app-wide state in a
+		// native app, and there is only ever one user in front of it.
+		builder.Services.AddSingleton<DashboardService>();
 
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();

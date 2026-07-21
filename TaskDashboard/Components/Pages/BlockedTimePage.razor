@@ -1,0 +1,125 @@
+@page "/blocked-time"
+@inject DashboardService Dashboard
+
+<h1>Blocked time</h1>
+
+<p class="blocked-intro">
+    Periods where no tasks get scheduled. The planner routes your work around
+    these.
+</p>
+
+<div class="blocked-toolbar">
+    <button type="button" class="btn btn-primary" @onclick="BeginAdd">Add blocked time</button>
+</div>
+
+@if (Dashboard.BlockedPeriods.Count == 0)
+{
+    <p class="blocked-empty">Nothing blocked yet. Sleep is a popular first entry.</p>
+}
+else
+{
+    <ul class="blocked-list">
+        @foreach (var period in Dashboard.BlockedPeriods)
+        {
+            <li class="blocked-item" @key="period.Id">
+                <div class="blocked-body">
+                    <span class="blocked-label">@period.Label</span>
+                    <span class="blocked-when">@Describe(period)</span>
+                </div>
+
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary"
+                        aria-label="@($"Edit \"{period.Label}\"")"
+                        @onclick="() => BeginEdit(period)">
+                    Edit
+                </button>
+
+                <button type="button"
+                        class="btn btn-sm btn-outline-danger"
+                        aria-label="@($"Delete \"{period.Label}\"")"
+                        @onclick="() => Dashboard.DeleteBlockedAsync(period.Id)">
+                    Delete
+                </button>
+            </li>
+        }
+    </ul>
+}
+
+@if (modalOpen)
+{
+    <BlockedModal Title="@(editingId is null ? "Add blocked time" : "Edit blocked time")"
+                  Form="form"
+                  OnSave="SaveAsync"
+                  OnCancel="() => modalOpen = false" />
+}
+
+@code {
+    private readonly BlockedForm form = new();
+
+    private bool modalOpen;
+    private Guid? editingId;
+
+    protected override Task OnInitializedAsync() => Dashboard.LoadAsync();
+
+    private void BeginAdd()
+    {
+        form.Reset();
+        editingId = null;
+        modalOpen = true;
+    }
+
+    private void BeginEdit(BlockedPeriod period)
+    {
+        var source = BlockedForm.From(period);
+        form.Label = source.Label;
+        form.IsRecurring = source.IsRecurring;
+        form.Days = source.Days;
+        form.StartTime = source.StartTime;
+        form.EndTime = source.EndTime;
+        form.Start = source.Start;
+        form.End = source.End;
+
+        editingId = period.Id;
+        modalOpen = true;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (editingId is { } id)
+        {
+            await Dashboard.UpdateBlockedAsync(id, form);
+        }
+        else
+        {
+            await Dashboard.AddBlockedAsync(form);
+        }
+
+        modalOpen = false;
+    }
+
+    private static string Describe(BlockedPeriod period)
+    {
+        if (!period.IsRecurring)
+        {
+            return period is { Start: { } start, End: { } end }
+                ? $"{start.ToLocalTime():ddd d MMM, HH:mm} – {end.ToLocalTime():ddd d MMM, HH:mm}"
+                : "(incomplete)";
+        }
+
+        if (period.StartTime is not { } from || period.EndTime is not { } to)
+        {
+            return "(incomplete)";
+        }
+
+        var days = period.Days.Count == 7
+            ? "Every day"
+            : string.Join(", ", OrderedDays(period.Days).Select(d => d.ToString()[..3]));
+        var crossesMidnight = to <= from ? " (next day)" : "";
+
+        return $"{days}, {from:HH\\:mm} – {to:HH\\:mm}{crossesMidnight}";
+    }
+
+    private static IEnumerable<DayOfWeek> OrderedDays(IEnumerable<DayOfWeek> days) =>
+        days.OrderBy(d => ((int)d + 6) % 7); // Monday first
+
+}
