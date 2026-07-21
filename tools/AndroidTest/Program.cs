@@ -22,7 +22,8 @@ var mode = args.Length > 0 ? args[0] : "suite";
 var shotDir = args.Length > 1 ? args[1] : ".";
 var failures = 0;
 
-using var cdp = await Cdp.ConnectAsync("http://localhost:9333");
+using var cdp = new Cdp("http://localhost:9333");
+var screenshotsBroken = false;
 
 async Task Step(string name, Func<Task> body)
 {
@@ -93,8 +94,24 @@ async Task AddTask(string title, string? priority, string? estimate)
 
 async Task Shot(string name)
 {
-    var png = await cdp.ScreenshotAsync();
-    await File.WriteAllBytesAsync(Path.Combine(shotDir, name), png);
+    // Screenshots are evidence, not assertions: some real-device WebViews
+    // (observed on Samsung) never answer Page.captureScreenshot. Skip rather
+    // than fail the run; use adb screencap externally when a picture matters.
+    if (screenshotsBroken)
+    {
+        return;
+    }
+
+    try
+    {
+        var png = await cdp.ScreenshotAsync();
+        await File.WriteAllBytesAsync(Path.Combine(shotDir, name), png);
+    }
+    catch (Exception e)
+    {
+        screenshotsBroken = true;
+        Console.WriteLine($"note  screenshots unavailable on this WebView, skipping the rest ({e.Message.Split('\n')[0].Trim()})");
+    }
 }
 
 if (mode == "probe")
@@ -238,25 +255,37 @@ await Shot("droid-3-dashboard.png");
 Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
 return failures == 0 ? 0 : 1;
 
-/// <summary>Minimal CDP client over the page-level websocket.</summary>
+/// <summary>Minimal CDP client over the page-level websocket. Reconnects on
+/// demand: a timed-out receive aborts a ClientWebSocket permanently, and the
+/// app's state lives in the page, not the connection, so a fresh socket is
+/// always safe.</summary>
 internal sealed class Cdp : IDisposable
 {
-    private readonly ClientWebSocket socket;
+    private readonly string httpEndpoint;
+    private ClientWebSocket? socket;
     private int nextId;
 
-    private Cdp(ClientWebSocket socket) => this.socket = socket;
+    public Cdp(string httpEndpoint) => this.httpEndpoint = httpEndpoint;
 
-    public static async Task<Cdp> ConnectAsync(string httpEndpoint)
+    private async Task<ClientWebSocket> EnsureConnectedAsync()
     {
+        if (socket is { State: WebSocketState.Open })
+        {
+            return socket;
+        }
+
+        socket?.Dispose();
+        pageEnabled = false;
+
         using var http = new HttpClient();
         var targets = JsonSerializer.Deserialize<JsonElement>(await http.GetStringAsync($"{httpEndpoint}/json"));
         var wsUrl = targets.EnumerateArray()
             .First(t => t.GetProperty("type").GetString() == "page")
             .GetProperty("webSocketDebuggerUrl").GetString()!;
 
-        var socket = new ClientWebSocket();
+        socket = new ClientWebSocket();
         await socket.ConnectAsync(new Uri(wsUrl), CancellationToken.None);
-        return new Cdp(socket);
+        return socket;
     }
 
     public async Task<JsonElement> EvalAsync(string expression)
@@ -276,17 +305,32 @@ internal sealed class Cdp : IDisposable
         return result.GetProperty("result").TryGetProperty("value", out var value) ? value : default;
     }
 
+    private bool pageEnabled;
+
     public async Task<byte[]> ScreenshotAsync()
     {
+        if (!pageEnabled)
+        {
+            await SendAsync("Page.enable", new { });
+            pageEnabled = true;
+        }
+
         var result = await SendAsync("Page.captureScreenshot", new { });
         return Convert.FromBase64String(result.GetProperty("data").GetString()!);
     }
 
     private async Task<JsonElement> SendAsync(string method, object @params)
     {
+        var ws = await EnsureConnectedAsync();
+
+        // A hard timeout so a stalled device (e.g. screen off mid-run) fails
+        // the step instead of hanging the whole run. The abort poisons the
+        // socket, but EnsureConnectedAsync replaces it on the next call.
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+
         var id = ++nextId;
         var payload = JsonSerializer.SerializeToUtf8Bytes(new { id, method, @params });
-        await socket.SendAsync(payload, WebSocketMessageType.Text, endOfMessage: true, CancellationToken.None);
+        await ws.SendAsync(payload, WebSocketMessageType.Text, endOfMessage: true, cts.Token);
 
         // Read frames until our reply arrives; events are interleaved and skipped.
         var buffer = new byte[1 << 16];
@@ -296,7 +340,7 @@ internal sealed class Cdp : IDisposable
             WebSocketReceiveResult frame;
             do
             {
-                frame = await socket.ReceiveAsync(buffer, CancellationToken.None);
+                frame = await ws.ReceiveAsync(buffer, cts.Token);
                 message.Write(buffer, 0, frame.Count);
             }
             while (!frame.EndOfMessage);
@@ -314,5 +358,5 @@ internal sealed class Cdp : IDisposable
         }
     }
 
-    public void Dispose() => socket.Dispose();
+    public void Dispose() => socket?.Dispose();
 }

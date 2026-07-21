@@ -129,6 +129,16 @@ WebView. The android-31 emulator image ships Chromium 91, which cannot parse
 at "Loading...". The android-35 image (Chromium 124) works, as will any real
 device with an up-to-date WebView.
 
+Physical devices work the same way (enable USB debugging, same `adb forward`).
+Two device realities the tool now survives: a locked screen stalls CDP
+mid-run (calls carry a 20 s timeout and the client reconnects, since a
+timed-out receive aborts a .NET `ClientWebSocket`), and some real-device
+WebViews (observed: Samsung, Chromium 150) never answer
+`Page.captureScreenshot` — screenshots are skipped rather than failing the
+run; use `adb shell screencap` when a picture matters. Deploying to an arm64
+phone after an x86_64 emulator needs `-p:RuntimeIdentifiers=android-arm64`
+(or a clean) to rebuild for the right ABI.
+
 ## Development
 
 This project is developed with [Claude Code](https://claude.com/claude-code),
