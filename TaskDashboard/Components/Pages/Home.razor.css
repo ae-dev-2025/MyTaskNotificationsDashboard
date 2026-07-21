@@ -1,13 +1,5 @@
-.task-add {
+.task-toolbar {
     margin: 1rem 0 0.5rem;
-}
-
-.task-add-actions,
-.task-edit-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-top: 0.5rem;
 }
 
 .task-empty {
@@ -102,11 +94,6 @@
 
 .task-item.done .task-meta {
     opacity: 0.6;
-}
-
-/* The inline editor replaces the whole row, so it owns the full width. */
-.task-edit {
-    flex: 1;
 }
 
 .task-footer {

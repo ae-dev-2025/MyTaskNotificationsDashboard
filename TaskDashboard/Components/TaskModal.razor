@@ -1,0 +1,55 @@
+@* Add/edit dialog shared by both flows. The parent renders this component
+   conditionally, so mounting it means "open". Esc or a backdrop click cancels. *@
+
+<div class="modal-backdrop-area" @onclick="() => OnCancel.InvokeAsync()">
+    <div class="modal-panel"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="task-modal-title"
+         @onclick:stopPropagation
+         @onkeydown="HandleKeyAsync">
+        <h2 id="task-modal-title">@Title</h2>
+
+        <EditForm Model="Form" OnValidSubmit="() => OnSave.InvokeAsync()">
+            <DataAnnotationsValidator />
+
+            <TaskFields @ref="fields" Form="Form" />
+
+            <ValidationSummary />
+
+            <div class="modal-actions">
+                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="() => OnCancel.InvokeAsync()">
+                    Cancel
+                </button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public TaskForm Form { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private TaskFields? fields;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && fields is not null)
+        {
+            await fields.FocusTitleAsync();
+        }
+    }
+
+    private Task HandleKeyAsync(KeyboardEventArgs e) =>
+        e.Key == "Escape" ? OnCancel.InvokeAsync() : Task.CompletedTask;
+}
