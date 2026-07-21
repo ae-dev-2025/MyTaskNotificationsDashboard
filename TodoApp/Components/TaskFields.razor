@@ -1,0 +1,48 @@
+@* The four editable task fields, shared by the add form and the inline editor. *@
+
+<div class="task-fields">
+    <InputText @ref="titleInput"
+               @bind-Value="Form.Title"
+               class="form-control field-title"
+               placeholder="@TitlePlaceholder"
+               aria-label="Task title" />
+
+    <InputDate Type="InputDateType.DateTimeLocal"
+               @bind-Value="Form.Deadline"
+               class="form-control field-deadline"
+               aria-label="Deadline" />
+
+    <InputSelect @bind-Value="Form.Priority"
+                 class="form-select field-priority"
+                 aria-label="Priority">
+        @foreach (var priority in Enum.GetValues<TaskPriority>())
+        {
+            <option value="@priority">@priority</option>
+        }
+    </InputSelect>
+
+    <InputNumber @bind-Value="Form.EstimatedMinutes"
+                 class="form-control field-estimate"
+                 placeholder="Est. mins"
+                 aria-label="Estimated minutes to complete"
+                 min="1" />
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public TaskForm Form { get; set; } = default!;
+
+    [Parameter]
+    public string? TitlePlaceholder { get; set; }
+
+    private InputText? titleInput;
+
+    /// <summary>Moves focus to the title box. Called by the parent when an editor opens.</summary>
+    public async ValueTask FocusTitleAsync()
+    {
+        if (titleInput?.Element is { } element)
+        {
+            await element.FocusAsync();
+        }
+    }
+}

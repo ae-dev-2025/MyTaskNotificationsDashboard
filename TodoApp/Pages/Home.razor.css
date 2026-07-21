@@ -1,28 +1,34 @@
-.todo-add {
-    display: flex;
-    gap: 0.5rem;
-    margin: 1rem 0 0.25rem;
+.task-add {
+    margin: 1rem 0 0.5rem;
 }
 
-.todo-empty {
+.task-add-actions,
+.task-edit-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.task-empty {
     margin-top: 1.5rem;
     color: #6c757d;
 }
 
-.todo-filters {
+.task-filters {
     display: flex;
     gap: 0.5rem;
     margin: 1.25rem 0 0.75rem;
 }
 
-.todo-list {
+.task-list {
     list-style: none;
     margin: 0;
     padding: 0;
     border-top: 1px solid #e5e5e5;
 }
 
-.todo-item {
+.task-item {
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -30,25 +36,87 @@
     border-bottom: 1px solid #e5e5e5;
 }
 
-.todo-item .todo-title {
+.task-item .task-body {
     flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.75rem;
     cursor: text;
+}
+
+.task-item .task-title {
     word-break: break-word;
 }
 
-.todo-item.done .todo-title {
+.task-item.done .task-title {
     text-decoration: line-through;
     color: #6c757d;
 }
 
-.todo-item input[type="text"] {
+.task-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.task-meta .badge.priority {
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.priority-low {
+    background-color: #e9ecef;
+    color: #495057;
+}
+
+.priority-normal {
+    background-color: #d5e5f7;
+    color: #1c4f82;
+}
+
+.priority-high {
+    background-color: #fde5cc;
+    color: #8a4b08;
+}
+
+.priority-urgent {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+.task-item.overdue .deadline {
+    color: #b02a37;
+    font-weight: 600;
+}
+
+.overdue-flag {
+    margin-left: 0.35rem;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+}
+
+.task-item.done .task-meta {
+    opacity: 0.6;
+}
+
+/* The inline editor replaces the whole row, so it owns the full width. */
+.task-edit {
     flex: 1;
 }
 
-.todo-footer {
+.task-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-top: 0.75rem;
     color: #6c757d;
+}
+
+.footer-estimate {
+    margin-left: 0.25rem;
 }
