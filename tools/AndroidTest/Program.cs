@@ -139,8 +139,10 @@ if (mode == "verify")
 await Step("app: dashboard is the root page", async () =>
 {
     await WaitFor("document.querySelector('h1')", "app rendered");
-    var h1 = await Text("h1");
-    if (h1 != "Dashboard") throw new Exception($"expected Dashboard, got {h1}");
+    // The app may have been left on any page by a previous run or a human —
+    // go home first, then assert.
+    await Click("a[href=\"\"]");
+    await WaitFor("document.querySelector('h1')?.innerText === 'Dashboard'", "dashboard heading");
 });
 
 await Step("reset: clear blocked periods", async () =>
