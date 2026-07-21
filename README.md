@@ -87,7 +87,8 @@ Requires the .NET 10 SDK with the `maui-windows` and `android` workloads
 | `TaskDashboard/Components/Pages/CalendarPage.razor` | The week-timeline calendar |
 | `TaskDashboard/Components/Pages/BlockedTimePage.razor` | Blocked-time management |
 | `TaskDashboard/MauiProgram.cs` | App bootstrap and dependency injection |
-| `tools/UiTest/` | End-to-end UI tests (Playwright over CDP against the running app) |
+| `tools/UiTest/` | End-to-end UI tests for Windows (Playwright over CDP) |
+| `tools/AndroidTest/` | End-to-end UI tests for Android (raw CDP over adb) |
 
 ## Notes
 
@@ -101,13 +102,32 @@ reflection, so persistence keeps working under the trimming and AOT compilation
 MAUI applies to Android release builds.
 
 The UI is tested by driving the running native app over the Chrome DevTools
-Protocol: launching with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9333`
-exposes the app's WebView2 to Playwright. The suite lives in `tools/UiTest`:
+Protocol, on both platforms:
+
+**Windows** — launching with
+`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9333` exposes
+the app's WebView2 to Playwright. The suite lives in `tools/UiTest`:
 
 ```bash
 dotnet run --project tools/UiTest -- suite   # full feature suite (resets the list)
 dotnet run --project tools/UiTest -- verify  # after an app restart: asserts persistence
 ```
+
+**Android** — debug builds enable WebView content debugging, but Android
+WebView only speaks page-level CDP, which Playwright cannot attach to, so
+`tools/AndroidTest` is a small raw CDP client instead:
+
+```bash
+adb forward tcp:9333 localabstract:webview_devtools_remote_$(adb shell pidof com.aedev2025.taskdashboard)
+dotnet run --project tools/AndroidTest -- suite   # tasks, calendar, blocked time, dashboard
+dotnet run --project tools/AndroidTest -- verify  # after force-stop + relaunch
+```
+
+Gotcha worth knowing: the app requires a reasonably current Android System
+WebView. The android-31 emulator image ships Chromium 91, which cannot parse
+`blazor.webview.js` (.NET 10) — Blazor silently never starts and the page sits
+at "Loading...". The android-35 image (Chromium 124) works, as will any real
+device with an up-to-date WebView.
 
 ## Development
 
