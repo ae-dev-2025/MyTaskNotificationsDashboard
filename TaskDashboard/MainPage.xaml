@@ -3,7 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:local="clr-namespace:TaskDashboard"
              xmlns:components="clr-namespace:TaskDashboard.Components"
-             x:Class="TaskDashboard.MainPage">
+             x:Class="TaskDashboard.MainPage"
+             SafeAreaEdges="All">
 
     <BlazorWebView x:Name="blazorWebView" HostPage="wwwroot/index.html">
         <BlazorWebView.RootComponents>
