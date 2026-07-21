@@ -77,6 +77,7 @@ public class TodoService
         }
 
         item.IsDone = !item.IsDone;
+        item.CompletedAt = item.IsDone ? DateTimeOffset.UtcNow : null;
         await SaveAsync();
     }
 

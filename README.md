@@ -29,15 +29,21 @@ added later by restoring their target frameworks in
   **estimated time to complete**; all three are optional except the title
 - Overdue tasks are flagged, and the footer totals the estimated time still outstanding
 - Mark tasks done, filter by All / Active / Completed, and clear completed
+- A **week-timeline calendar** with an auto-planner: unfinished tasks are placed
+  into upcoming time slots (earliest deadline first, then priority, then the
+  shorter estimate), deadlines draw as markers, a slot that cannot finish before
+  its deadline is flagged, completed tasks appear dimmed at the time they were
+  finished, and a now-line tracks the current minute
 - Tasks persist to a JSON file in the app's private data directory, written
   atomically so an ill-timed crash cannot corrupt the list
 
 ## Roadmap
 
+- **Blocked time** — recurring and one-off periods the planner must schedule around
+- **Dashboard home** — Now / Up next / Done panels answering what you should be
+  doing at this minute
 - **Local notifications** for tasks that are due soon or overdue — the reason
   this is a MAUI app — on both Android and Windows
-- **Sorting and grouping** by deadline and priority — the list is currently in creation order
-- **Dashboard view** — summary tiles (due today, overdue, completed this week) alongside the list
 - **Backend + sync** so tasks and notification state follow you across devices
 - **iOS / Mac Catalyst** targets once a Mac build host is available
 
@@ -69,7 +75,9 @@ Requires the .NET 10 SDK with the `maui-windows` and `android` workloads
 | `TaskDashboard/Services/TodoService.cs` | Task state and file persistence |
 | `TaskDashboard/Components/TaskFields.razor` | The four labeled task inputs, used inside the dialog |
 | `TaskDashboard/Components/TaskModal.razor` | The add/edit dialog shared by both flows |
-| `TaskDashboard/Components/Pages/Home.razor` | The task UI |
+| `TaskDashboard/Services/Planner.cs` | Deterministic auto-planner placing tasks into free time |
+| `TaskDashboard/Components/Pages/Home.razor` | The task list UI |
+| `TaskDashboard/Components/Pages/CalendarPage.razor` | The week-timeline calendar |
 | `TaskDashboard/MauiProgram.cs` | App bootstrap and dependency injection |
 | `tools/UiTest/` | End-to-end UI tests (Playwright over CDP against the running app) |
 

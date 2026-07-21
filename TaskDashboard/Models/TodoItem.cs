@@ -8,6 +8,10 @@ public class TodoItem
 
     public bool IsDone { get; set; }
 
+    /// <summary>When the task was marked done. Null while unfinished, and for
+    /// tasks completed before this field existed.</summary>
+    public DateTimeOffset? CompletedAt { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     /// <summary>When the task is due. Null means no deadline was set.</summary>

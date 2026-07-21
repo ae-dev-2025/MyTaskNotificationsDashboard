@@ -23,6 +23,16 @@
         <span class="dismiss">🗙</span>
     </div>
 
+    <script>
+        // Small helpers invoked from Blazor via IJSRuntime.
+        window.taskDashboard = {
+            scrollTo: function (element, top) {
+                if (element) {
+                    element.scrollTop = top;
+                }
+            }
+        };
+    </script>
     <script src="_framework/blazor.webview.js" autostart="false"></script>
 
 </body>
