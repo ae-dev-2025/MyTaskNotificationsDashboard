@@ -8,6 +8,18 @@ built with **.NET MAUI Blazor Hybrid** (.NET 10), targeting **Windows** and
 > the native app. Notifications and the dashboard views described under
 > [Roadmap](#roadmap) are not implemented yet.
 
+## Download
+
+| Platform | Download | Install |
+| --- | --- | --- |
+| **Windows** (10 build 1809+, x64) | [TaskDashboard-windows-x64.zip](https://github.com/ae-dev-2025/MyTaskNotificationsDashboard/releases/latest/download/TaskDashboard-windows-x64.zip) | Unzip anywhere, run `TaskDashboard.exe`. SmartScreen will warn because the build is unsigned — *More info → Run anyway* |
+| **Android** (7.0+) | [TaskDashboard-android.apk](https://github.com/ae-dev-2025/MyTaskNotificationsDashboard/releases/latest/download/TaskDashboard-android.apk) | Open the APK on the phone and allow installing from unknown sources. Requires an up-to-date Android System WebView |
+
+Every merge to `main` automatically publishes a fresh
+[release](https://github.com/ae-dev-2025/MyTaskNotificationsDashboard/releases).
+Android builds are signed with the maintainer's release key (held in CI
+secrets), so updates install over previous versions cleanly.
+
 ## Why .NET MAUI?
 
 This project started as a Blazor WebAssembly web app. It was rebuilt as a .NET
