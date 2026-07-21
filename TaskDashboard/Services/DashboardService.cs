@@ -120,7 +120,50 @@ public class DashboardService
         }
 
         item.IsDone = !item.IsDone;
-        item.CompletedAt = item.IsDone ? DateTimeOffset.UtcNow : null;
+        if (item.IsDone)
+        {
+            // StartedAt is kept: [StartedAt, CompletedAt] is the real record
+            // of when the work happened.
+            item.CompletedAt = DateTimeOffset.UtcNow;
+        }
+        else
+        {
+            item.CompletedAt = null;
+            item.StartedAt = null;
+        }
+
+        await SaveAsync();
+    }
+
+    /// <summary>Marks a task as the one being worked on. Only one task can be
+    /// in progress at a time — starting one stops any other.</summary>
+    public async Task StartAsync(Guid id)
+    {
+        var item = data.Tasks.FirstOrDefault(i => i.Id == id);
+        if (item is null || item.IsDone)
+        {
+            return;
+        }
+
+        foreach (var other in data.Tasks.Where(t => t.IsInProgress && t.Id != id))
+        {
+            other.StartedAt = null;
+        }
+
+        item.StartedAt = DateTimeOffset.UtcNow;
+        await SaveAsync();
+    }
+
+    /// <summary>Abandons an in-progress start without completing the task.</summary>
+    public async Task StopAsync(Guid id)
+    {
+        var item = data.Tasks.FirstOrDefault(i => i.Id == id);
+        if (item is null || item.StartedAt is null)
+        {
+            return;
+        }
+
+        item.StartedAt = null;
         await SaveAsync();
     }
 

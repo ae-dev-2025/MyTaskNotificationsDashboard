@@ -132,10 +132,17 @@ if (mode == "verify")
     {
         await WaitFor("document.querySelector('h1')", "app rendered");
         await NavTo("tasks", "Tasks");
-        // The suite leaves three: two active plus the completed "Done on droid".
+        // The suite leaves three tasks: two completed (Done on droid, and
+        // Android task via the dashboard Done button) plus Second task running.
         if (await Count(".task-item") != 3) throw new Exception($"expected 3 tasks, got {await Count(".task-item")}");
-        if (await Count(".task-item.done") != 1) throw new Exception("expected the completed task to survive as done");
+        if (await Count(".task-item.done") != 2) throw new Exception("expected both completed tasks to survive as done");
         await WaitFor("[...document.querySelectorAll('.task-title')].some(e => e.innerText.includes('Android task'))", "Android task row");
+    });
+
+    await Step("persisted: in-progress state survived relaunch", async () =>
+    {
+        if (await Count(".task-item.started") != 1) throw new Exception("expected one in-progress row");
+        await WaitFor("[...document.querySelectorAll('.task-item.started')].some(e => e.innerText.includes('Second task'))", "Second task still running");
     });
 
     await Step("persisted: blocked period survived relaunch", async () =>
@@ -218,12 +225,16 @@ await Step("toggle: third task added and completed", async () =>
 });
 await Shot("droid-1-tasks.png");
 
-await Step("blocked: add nightly Sleep period", async () =>
+await Step("blocked: add recurring Sleep period clear of now", async () =>
 {
+    // Clock-relative window (now+3h .. now+11h) so the fixture can never
+    // swallow the current time, whatever hour the suite runs at.
     await NavTo("blocked-time", "Blocked time");
     await Click(".blocked-toolbar button");
     await WaitFor("document.querySelector('.modal-panel')", "modal open");
     await SetValue("#blocked-label", "Sleep");
+    await SetValue("#blocked-start-time", DateTime.Now.AddHours(3).ToString("HH:mm"));
+    await SetValue("#blocked-end-time", DateTime.Now.AddHours(11).ToString("HH:mm"));
     await Click(".modal-panel button[type=submit]");
     await WaitFor("!document.querySelector('.modal-panel')", "modal closed");
     if (await Count(".blocked-item") != 1) throw new Exception("expected 1 blocked period");
@@ -251,6 +262,29 @@ await Step("dashboard: Now shows the high-priority task, Done shows the completi
     if (!nextPanel.Contains("Second task")) throw new Exception($"Next panel: {nextPanel}");
 });
 await Shot("droid-3-dashboard.png");
+
+await Step("tracking: start from the dashboard Now panel", async () =>
+{
+    await Click(".panel-now .btn-start");
+    await WaitFor("document.querySelector('.panel-now .btn-stop')", "started state");
+    var now = await Text(".panel-now");
+    if (!now.Contains("Android task") || !now.Contains("m in")) throw new Exception($"Now panel: {now}");
+});
+
+await Step("tracking: complete from the dashboard", async () =>
+{
+    await Click(".panel-now .btn-done-now");
+    await WaitFor("(document.querySelector('.panel-done')?.innerText ?? '').includes('Android task')", "completion in Done panel");
+});
+
+await Step("tracking: start the next planned task and leave it running", async () =>
+{
+    await WaitFor("document.querySelector('.panel-now .btn-start')", "next planned slot");
+    var next = await Text(".panel-now");
+    if (!next.Contains("Second task")) throw new Exception($"Now panel: {next}");
+    await Click(".panel-now .btn-start");
+    await WaitFor("document.querySelector('.panel-now .btn-stop')", "started state");
+});
 
 Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
 return failures == 0 ? 0 : 1;

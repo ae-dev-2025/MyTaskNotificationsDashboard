@@ -87,6 +87,10 @@ public static class Planner
     /// <summary>Assumed length of a task that has no estimate.</summary>
     public static readonly TimeSpan DefaultEstimate = TimeSpan.FromMinutes(30);
 
+    /// <summary>An in-progress task is never planned shorter than this, even
+    /// when it has already overrun its estimate.</summary>
+    public static readonly TimeSpan MinimumRemaining = TimeSpan.FromMinutes(5);
+
     public static List<PlannedSlot> Plan(
         IEnumerable<TodoItem> tasks,
         IReadOnlyList<TimeRange> busy,
@@ -95,16 +99,35 @@ public static class Planner
     {
         var limit = from + horizon;
         var blocked = MergeOverlapping(busy, from, limit);
+        var pending = tasks.Where(t => !t.IsDone).ToList();
 
-        var ordered = tasks
-            .Where(t => !t.IsDone)
+        var slots = new List<PlannedSlot>();
+        var cursor = from;
+
+        // Reality first: a started task is being worked on NOW, so it occupies
+        // the front of the plan for its remaining time — deliberately ignoring
+        // blocked ranges, because it is already happening.
+        foreach (var task in pending.Where(t => t.IsInProgress).OrderBy(t => t.StartedAt))
+        {
+            var duration = RemainingWork(task, from);
+            var end = cursor + duration;
+            if (end > limit)
+            {
+                break;
+            }
+
+            slots.Add(new PlannedSlot(
+                task.Id, cursor, end,
+                task.Deadline is { } due && end > due));
+            cursor = end;
+        }
+
+        var ordered = pending
+            .Where(t => !t.IsInProgress)
             .OrderBy(t => t.Deadline ?? DateTimeOffset.MaxValue)
             .ThenByDescending(t => t.Priority)
             .ThenBy(t => t.EstimatedTime ?? DefaultEstimate)
             .ThenBy(t => t.CreatedAt); // stable tie-break so plans don't shuffle
-
-        var slots = new List<PlannedSlot>();
-        var cursor = from;
 
         foreach (var task in ordered)
         {
@@ -127,6 +150,20 @@ public static class Planner
         }
 
         return slots;
+    }
+
+    /// <summary>Estimate minus time already spent, floored at
+    /// <see cref="MinimumRemaining"/> so an overrun task still holds a slot.</summary>
+    public static TimeSpan RemainingWork(TodoItem task, DateTimeOffset now)
+    {
+        var estimate = task.EstimatedTime ?? DefaultEstimate;
+        if (task.StartedAt is { } started && started <= now)
+        {
+            var remaining = estimate - (now - started);
+            return remaining > MinimumRemaining ? remaining : MinimumRemaining;
+        }
+
+        return estimate;
     }
 
     /// <summary>Earliest start at or after <paramref name="cursor"/> where the

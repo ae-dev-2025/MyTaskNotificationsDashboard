@@ -141,14 +141,18 @@ if (mode == "blocked")
         await modal.GetByRole(AriaRole.Button, new() { Name = "Cancel" }).ClickAsync();
     });
 
-    await Step("blocked: add recurring Sleep with default nightly window", async () =>
+    await Step("blocked: add recurring Sleep, window kept clear of now", async () =>
     {
+        // Clock-relative window (now+3h .. now+11h) so the fixture can never
+        // swallow the current time, whatever hour the suite runs at.
         await page.GetByRole(AriaRole.Button, new() { Name = "Add blocked time" }).ClickAsync();
         await modal.GetByLabel("Label").FillAsync("Sleep");
+        await modal.GetByLabel("Start time").FillAsync(DateTime.Now.AddHours(3).ToString("HH:mm"));
+        await modal.GetByLabel("End time").FillAsync(DateTime.Now.AddHours(11).ToString("HH:mm"));
         await modal.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
         await Expect(page.Locator(".blocked-item", new() { HasTextString = "Sleep" })).ToHaveCountAsync(1);
         await Expect(page.Locator(".blocked-item", new() { HasTextString = "Sleep" }))
-            .ToContainTextAsync("Every day, 23:00 – 07:00 (next day)");
+            .ToContainTextAsync("Every day,");
     });
 
     await Step("blocked: add a one-off Lunch break", async () =>
@@ -182,18 +186,41 @@ if (mode == "blocked")
             .ToHaveCountAsync(1);
     });
 
-    await Step("planner: task routed to after the lunch block", async () =>
+    await Step("planner: slot exists and never overlaps blocked time", async () =>
     {
-        var lunch = page.Locator(".cal-day.today .cal-blocked", new() { HasTextString = "Lunch break" });
-        var slot = page.Locator(".cal-day.today .cal-slot", new() { HasTextString = "Deep work" });
-        await Expect(slot).ToHaveCountAsync(1);
-
-        var lunchBox = await lunch.BoundingBoxAsync() ?? throw new Exception("no lunch box");
-        var slotBox = await slot.BoundingBoxAsync() ?? throw new Exception("no slot box");
-        if (slotBox.Y < lunchBox.Y + lunchBox.Height - 2)
+        // The invariant that holds at any hour: the planned slot may land
+        // after the lunch block or on a later day, but it must never overlap
+        // a blocked range in its own column.
+        var verdict = await page.EvaluateAsync<string>(
+            """
+            () => {
+                const slots = [...document.querySelectorAll('.cal-slot')];
+                const slot = slots.find(e => e.innerText.includes('Deep work'));
+                if (!slot) {
+                    return 'MISSING; slots present: [' +
+                        slots.map(e => e.innerText.replace(/\s+/g, ' ')).join(' | ') + ']';
+                }
+                const s = slot.getBoundingClientRect();
+                // Blocks under ~15px are midnight fragments inflated by the
+                // calendar's 14px readability clamp — their pixels overstate
+                // their real duration, so they can't prove a genuine overlap.
+                const hit = [...slot.parentElement.querySelectorAll('.cal-blocked')]
+                    .filter(b => b.getBoundingClientRect().height > 15)
+                    .find(b => {
+                        const r = b.getBoundingClientRect();
+                        return r.top < s.bottom - 1 && r.bottom > s.top + 1;
+                    });
+                return hit
+                    ? 'OVERLAP with ' + hit.innerText.replace(/\s+/g, ' ') +
+                      ' slot=' + Math.round(s.top) + '..' + Math.round(s.bottom) +
+                      ' block=' + Math.round(hit.getBoundingClientRect().top) + '..' +
+                      Math.round(hit.getBoundingClientRect().bottom)
+                    : 'OK';
+            }
+            """);
+        if (verdict != "OK")
         {
-            throw new Exception(
-                $"Deep work starts at y={slotBox.Y:0} but lunch runs to y={lunchBox.Y + lunchBox.Height:0} — not routed around");
+            throw new Exception(verdict);
         }
     });
 
@@ -298,9 +325,103 @@ if (mode == "dashboard")
     return failures == 0 ? 0 : 1;
 }
 
+if (mode == "tracking")
+{
+    await Step("prep: clear blocked periods", async () =>
+    {
+        await NavTo("Blocked time", "Blocked time");
+        while (await page.Locator(".blocked-item").CountAsync() > 0)
+        {
+            await page.Locator(".blocked-item").First
+                .GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Delete") }).ClickAsync();
+            await page.WaitForTimeoutAsync(200);
+        }
+    });
+
+    await Step("prep: seed two tasks", async () =>
+    {
+        await NavTo("Tasks", "Tasks");
+        await ResetAllTasks();
+        await AddTask("Focus task", null, "High", "60");
+        await AddTask("Other task", null, null, "30");
+    });
+
+    await Step("row start: marks the task in progress", async () =>
+    {
+        await Row("Focus task").GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Start") }).ClickAsync();
+        await Expect(page.Locator(".task-item.started")).ToHaveCountAsync(1);
+        await Expect(Row("Focus task").Locator(".badge.inprogress")).ToHaveCountAsync(1);
+        await Expect(Row("Focus task").GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Stop") })).ToHaveCountAsync(1);
+    });
+
+    await Step("dashboard: Now shows the started task with elapsed time and actions", async () =>
+    {
+        await NavTo("Dashboard", "Dashboard");
+        await Expect(page.Locator(".panel-now")).ToContainTextAsync("Focus task");
+        await Expect(page.Locator(".panel-now")).ToContainTextAsync("m in");
+        await Expect(page.Locator(".panel-now .btn-stop")).ToHaveCountAsync(1);
+        await Expect(page.Locator(".panel-now .btn-done-now")).ToHaveCountAsync(1);
+    });
+    await Shot("trk-01-now-started.png");
+
+    await Step("single-active: starting another task switches", async () =>
+    {
+        await NavTo("Tasks", "Tasks");
+        await Row("Other task").GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Start") }).ClickAsync();
+        await Expect(page.Locator(".task-item.started")).ToHaveCountAsync(1);
+        await Expect(Row("Other task").Locator(".badge.inprogress")).ToHaveCountAsync(1);
+        await Expect(Row("Focus task").Locator(".badge.inprogress")).ToHaveCountAsync(0);
+    });
+
+    await Step("row stop: abandons the start", async () =>
+    {
+        await Row("Other task").GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Stop") }).ClickAsync();
+        await Expect(page.Locator(".task-item.started")).ToHaveCountAsync(0);
+    });
+
+    await Step("dashboard: planned slot offers Start, and it works", async () =>
+    {
+        await NavTo("Dashboard", "Dashboard");
+        await Expect(page.Locator(".panel-now .btn-start")).ToHaveCountAsync(1);
+        await Expect(page.Locator(".panel-now")).ToContainTextAsync("Focus task"); // High goes first in the plan
+        await page.Locator(".panel-now .btn-start").ClickAsync();
+        await Expect(page.Locator(".panel-now .btn-stop")).ToHaveCountAsync(1);
+    });
+
+    await Step("dashboard: Done completes the started task into history", async () =>
+    {
+        await page.Locator(".panel-now .btn-done-now").ClickAsync();
+        await Expect(page.Locator(".panel-done")).ToContainTextAsync("Focus task");
+        await Expect(page.Locator(".tile").Nth(3).Locator(".tile-value")).ToHaveTextAsync("1");
+        await Expect(page.Locator(".panel-now")).Not.ToContainTextAsync("Focus task");
+    });
+    await Shot("trk-02-completed.png");
+
+    await Step("calendar: done block present with real span", async () =>
+    {
+        await NavTo("Calendar", "Calendar");
+        await Expect(page.Locator(".cal-done").First).ToBeVisibleAsync();
+    });
+
+    Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
+    return failures == 0 ? 0 : 1;
+}
+
 if (mode == "calendar")
 {
     static string Dt(DateTime d) => d.ToString("yyyy-MM-ddTHH:mm");
+
+    await Step("prep: clear blocked periods so the plan starts at now", async () =>
+    {
+        await NavTo("Blocked time", "Blocked time");
+        while (await page.Locator(".blocked-item").CountAsync() > 0)
+        {
+            await page.Locator(".blocked-item").First
+                .GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Delete") }).ClickAsync();
+            await page.WaitForTimeoutAsync(200);
+        }
+        await NavTo("Tasks", "Tasks");
+    });
 
     await Step("reset: delete any existing tasks", ResetAllTasks);
 

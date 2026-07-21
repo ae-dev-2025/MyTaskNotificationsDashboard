@@ -114,6 +114,10 @@
     outline-offset: -2px;
 }
 
+.cal-slot.started {
+    border-left: 4px solid #1b6ec2;
+}
+
 .cal-blocked {
     background: repeating-linear-gradient(
         45deg,

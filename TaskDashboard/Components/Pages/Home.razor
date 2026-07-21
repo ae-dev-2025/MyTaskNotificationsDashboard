@@ -28,7 +28,7 @@ else
     <ul class="task-list">
         @foreach (var item in Visible)
         {
-            <li class="task-item @(item.IsDone ? "done" : null) @(item.IsOverdue(Now) ? "overdue" : null)"
+            <li class="task-item @(item.IsDone ? "done" : null) @(item.IsOverdue(Now) ? "overdue" : null) @(item.IsInProgress ? "started" : null)"
                 @key="item.Id">
                 <input type="checkbox"
                        class="form-check-input"
@@ -43,6 +43,11 @@ else
                         <span class="badge priority priority-@item.Priority.ToString().ToLowerInvariant()">
                             @item.Priority
                         </span>
+
+                        @if (item.IsInProgress)
+                        {
+                            <span class="badge inprogress">in progress</span>
+                        }
 
                         @if (item.Deadline is { } deadline)
                         {
@@ -63,6 +68,28 @@ else
                         }
                     </span>
                 </div>
+
+                @if (!item.IsDone)
+                {
+                    @if (item.IsInProgress)
+                    {
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary row-stop"
+                                aria-label="@($"Stop \"{item.Title}\"")"
+                                @onclick="() => Todos.StopAsync(item.Id)">
+                            Stop
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="button"
+                                class="btn btn-sm btn-outline-success row-start"
+                                aria-label="@($"Start \"{item.Title}\"")"
+                                @onclick="() => Todos.StartAsync(item.Id)">
+                            Start
+                        </button>
+                    }
+                }
 
                 <button type="button"
                         class="btn btn-sm btn-outline-secondary"
