@@ -240,6 +240,64 @@ if (mode == "migrated")
     return failures == 0 ? 0 : 1;
 }
 
+if (mode == "dashboard")
+{
+    await Step("prep: clear blocked periods for a deterministic plan", async () =>
+    {
+        await NavTo("Blocked time", "Blocked time");
+        while (await page.Locator(".blocked-item").CountAsync() > 0)
+        {
+            await page.Locator(".blocked-item").First
+                .GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Delete") }).ClickAsync();
+            await page.WaitForTimeoutAsync(200);
+        }
+    });
+
+    await Step("prep: seed three planned tasks and one completed", async () =>
+    {
+        await NavTo("Tasks", "Tasks");
+        await ResetAllTasks();
+        // High priority pins this one to the front of the plan regardless of
+        // estimate-based tie-breaks.
+        await AddTask("Current thing", null, "High", "60");
+        await AddTask("Next thing", null, null, "30");
+        await AddTask("Third thing", null, null, "30");
+        await AddTask("Already done", null, null, null);
+        await Row("Already done").Locator("input[type=checkbox]").ClickAsync();
+        await Expect(page.Locator(".task-item.done")).ToHaveCountAsync(1);
+    });
+
+    await Step("dashboard: reachable via nav link", async () =>
+    {
+        await page.GetByRole(AriaRole.Link, new() { Name = "Dashboard", Exact = true }).ClickAsync();
+        await Expect(page.Locator("h1")).ToHaveTextAsync("Dashboard");
+    });
+
+    await Step("tiles: counts and estimate total", async () =>
+    {
+        await Expect(page.Locator(".tile").First.Locator(".tile-value")).ToHaveTextAsync("3");
+        await Expect(page.Locator(".tiles")).ToContainTextAsync("2h");       // 60+30+30
+        await Expect(page.Locator(".tile").Nth(3).Locator(".tile-value")).ToHaveTextAsync("1"); // done today
+    });
+
+    await Step("now: the highest-priority task is what you should be doing", () =>
+        Expect(page.Locator(".panel-now")).ToContainTextAsync("Current thing"));
+
+    await Step("up next: remaining tasks in plan order", async () =>
+    {
+        await Expect(page.Locator(".panel-next li").Nth(0)).ToContainTextAsync("Next thing");
+        await Expect(page.Locator(".panel-next li").Nth(1)).ToContainTextAsync("Third thing");
+    });
+
+    await Step("done: completed task listed with its time", () =>
+        Expect(page.Locator(".panel-done")).ToContainTextAsync("Already done"));
+
+    await Shot("dash-01.png");
+
+    Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
+    return failures == 0 ? 0 : 1;
+}
+
 if (mode == "calendar")
 {
     static string Dt(DateTime d) => d.ToString("yyyy-MM-ddTHH:mm");
