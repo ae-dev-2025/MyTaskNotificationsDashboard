@@ -1,0 +1,153 @@
+.tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+    gap: 0.75rem;
+    margin: 1rem 0 1.25rem;
+    max-width: 42rem;
+}
+
+.tile {
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    background: #fff;
+}
+
+.tile-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #212529;
+}
+
+.tile-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.tile-alert {
+    border-color: #f1aeb5;
+    background: #fdf2f3;
+}
+
+.tile-alert .tile-value {
+    color: #b02a37;
+}
+
+.panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 1rem;
+    align-items: start;
+}
+
+.panel {
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    padding: 1rem 1.1rem;
+    background: #fff;
+}
+
+.panel h2 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #868e96;
+    margin: 0 0 0.75rem;
+}
+
+.panel-now {
+    border-left: 4px solid #1b6ec2;
+}
+
+.panel-empty {
+    color: #6c757d;
+    margin: 0;
+}
+
+.now-task {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.now-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+}
+
+.now-time {
+    color: #6c757d;
+}
+
+.now-late {
+    color: #b02a37;
+    font-weight: 600;
+}
+
+.panel ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.panel li {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+}
+
+.next-time,
+.done-time {
+    font-variant-numeric: tabular-nums;
+    color: #868e96;
+    font-size: 0.85rem;
+    min-width: 5.5rem;
+}
+
+.next-late {
+    background: #f8d7da;
+    color: #842029;
+    border-radius: 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.05rem 0.35rem;
+    text-transform: uppercase;
+}
+
+.done-title {
+    color: #6c757d;
+    text-decoration: line-through;
+}
+
+/* Priority badge palette, matching the task list. */
+.badge.priority {
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.priority-low {
+    background-color: #e9ecef;
+    color: #495057;
+}
+
+.priority-normal {
+    background-color: #d5e5f7;
+    color: #1c4f82;
+}
+
+.priority-high {
+    background-color: #fde5cc;
+    color: #8a4b08;
+}
+
+.priority-urgent {
+    background-color: #f8d7da;
+    color: #842029;
+}

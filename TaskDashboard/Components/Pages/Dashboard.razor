@@ -1,0 +1,189 @@
+@page "/"
+@inject DashboardService Data
+@implements IDisposable
+
+<h1>Dashboard</h1>
+
+<div class="tiles">
+    <div class="tile">
+        <span class="tile-value">@Remaining.Count</span>
+        <span class="tile-label">@(Remaining.Count == 1 ? "task left" : "tasks left")</span>
+    </div>
+    <div class="tile">
+        <span class="tile-value">@FormatDuration(RemainingEstimate)</span>
+        <span class="tile-label">estimated</span>
+    </div>
+    <div class="tile @(OverdueCount > 0 ? "tile-alert" : null)">
+        <span class="tile-value">@OverdueCount</span>
+        <span class="tile-label">overdue</span>
+    </div>
+    <div class="tile">
+        <span class="tile-value">@DoneTodayCount</span>
+        <span class="tile-label">done today</span>
+    </div>
+</div>
+
+<div class="panels">
+    <section class="panel panel-now" aria-label="Now">
+        <h2>Now</h2>
+        @if (CurrentSlot is { } current && TaskFor(current) is { } currentTask)
+        {
+            <div class="now-task">
+                <span class="badge priority priority-@currentTask.Priority.ToString().ToLowerInvariant()">
+                    @currentTask.Priority
+                </span>
+                <span class="now-title">@currentTask.Title</span>
+                <span class="now-time">
+                    until @current.End.ToLocalTime().ToString("HH:mm")
+                    @if (current.MissesDeadline)
+                    {
+                        <span class="now-late">— will miss its deadline</span>
+                    }
+                </span>
+            </div>
+        }
+        else
+        {
+            <p class="panel-empty">Nothing planned right now. Enjoy the slack.</p>
+        }
+    </section>
+
+    <section class="panel panel-next" aria-label="Up next">
+        <h2>Up next</h2>
+        @if (UpcomingSlots.Count == 0)
+        {
+            <p class="panel-empty">Nothing queued inside the horizon.</p>
+        }
+        else
+        {
+            <ul>
+                @foreach (var slot in UpcomingSlots)
+                {
+                    var task = TaskFor(slot);
+                    if (task is null) { continue; }
+                    <li @key="slot">
+                        <span class="next-time">@slot.Start.ToLocalTime().ToString("ddd HH:mm")</span>
+                        <span class="next-title">@task.Title</span>
+                        @if (slot.MissesDeadline)
+                        {
+                            <span class="next-late" title="Planned to finish after its deadline">late</span>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    <section class="panel panel-done" aria-label="Done">
+        <h2>Done</h2>
+        @if (RecentlyDone.Count == 0)
+        {
+            <p class="panel-empty">Nothing completed yet.</p>
+        }
+        else
+        {
+            <ul>
+                @foreach (var task in RecentlyDone)
+                {
+                    <li @key="task.Id">
+                        <span class="done-time">@task.CompletedAt!.Value.ToLocalTime().ToString("ddd HH:mm")</span>
+                        <span class="done-title">@task.Title</span>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+</div>
+
+@code {
+    private static readonly TimeSpan PlanHorizon = TimeSpan.FromDays(14);
+    private const int UpNextCount = 3;
+    private const int DoneCount = 5;
+
+    private readonly PeriodicTimer clock = new(TimeSpan.FromSeconds(30));
+
+    private List<PlannedSlot> plan = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Data.LoadAsync();
+        _ = TickAsync();
+    }
+
+    protected override void OnParametersSet() => Recompute();
+
+    private void Recompute()
+    {
+        var now = DateTimeOffset.Now;
+        var busy = BlockedTime.Expand(Data.BlockedPeriods, now, now + PlanHorizon);
+        plan = Planner.Plan(Data.Items, busy, now, PlanHorizon);
+    }
+
+    private List<TodoItem> Remaining => [.. Data.Items.Where(i => !i.IsDone)];
+
+    private TimeSpan RemainingEstimate => Data.Items
+        .Where(i => !i.IsDone && i.EstimatedTime.HasValue)
+        .Aggregate(TimeSpan.Zero, (total, i) => total + i.EstimatedTime!.Value);
+
+    private int OverdueCount => Data.Items.Count(i => i.IsOverdue(DateTimeOffset.Now));
+
+    private int DoneTodayCount => Data.Items.Count(i =>
+        i.IsDone && i.CompletedAt is { } done && done.ToLocalTime().Date == DateTime.Today);
+
+    private PlannedSlot? CurrentSlot
+    {
+        get
+        {
+            var now = DateTimeOffset.Now;
+            return plan.FirstOrDefault(s => s.Start <= now && s.End > now);
+        }
+    }
+
+    private List<PlannedSlot> UpcomingSlots
+    {
+        get
+        {
+            var now = DateTimeOffset.Now;
+            return [.. plan.Where(s => s.Start > now).Take(UpNextCount)];
+        }
+    }
+
+    private List<TodoItem> RecentlyDone => [.. Data.Items
+        .Where(i => i.IsDone && i.CompletedAt is not null)
+        .OrderByDescending(i => i.CompletedAt)
+        .Take(DoneCount)];
+
+    private TodoItem? TaskFor(PlannedSlot slot) =>
+        Data.Items.FirstOrDefault(t => t.Id == slot.TaskId);
+
+    private async Task TickAsync()
+    {
+        try
+        {
+            while (await clock.WaitForNextTickAsync())
+            {
+                Recompute();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Component disposed.
+        }
+    }
+
+    public void Dispose() => clock.Dispose();
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        var hours = (int)duration.TotalHours;
+        var minutes = duration.Minutes;
+
+        if (hours > 0)
+        {
+            return minutes > 0 ? $"{hours}h {minutes}m" : $"{hours}h";
+        }
+
+        return $"{minutes}m";
+    }
+}

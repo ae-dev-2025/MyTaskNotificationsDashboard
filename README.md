@@ -24,6 +24,11 @@ added later by restoring their target frameworks in
 
 ## What works today
 
+- A **dashboard home** answering the three questions the app exists for:
+  **Now** (what the plan says you should be doing at this minute), **Up next**
+  (the following planned slots), and **Done** (what you finished, when) — plus
+  summary tiles for tasks left, estimated workload, overdue count, and
+  completions today
 - Add, edit, and delete tasks — double-click a task or press **Edit** to change it inline
 - Each task carries a **deadline**, a **priority** (Low / Normal / High / Urgent), and an
   **estimated time to complete**; all three are optional except the title
@@ -42,8 +47,6 @@ added later by restoring their target frameworks in
 
 ## Roadmap
 
-- **Dashboard home** — Now / Up next / Done panels answering what you should be
-  doing at this minute
 - **Local notifications** for tasks that are due soon or overdue — the reason
   this is a MAUI app — on both Android and Windows
 - **Backend + sync** so tasks and notification state follow you across devices
@@ -79,7 +82,8 @@ Requires the .NET 10 SDK with the `maui-windows` and `android` workloads
 | `TaskDashboard/Components/TaskFields.razor` | The four labeled task inputs, used inside the dialog |
 | `TaskDashboard/Components/TaskModal.razor` | The add/edit dialog shared by both flows |
 | `TaskDashboard/Services/Planner.cs` | Deterministic auto-planner placing tasks into free time |
-| `TaskDashboard/Components/Pages/Home.razor` | The task list UI |
+| `TaskDashboard/Components/Pages/Dashboard.razor` | The home page: Now / Up next / Done |
+| `TaskDashboard/Components/Pages/Home.razor` | The task list UI, at `/tasks` |
 | `TaskDashboard/Components/Pages/CalendarPage.razor` | The week-timeline calendar |
 | `TaskDashboard/Components/Pages/BlockedTimePage.razor` | Blocked-time management |
 | `TaskDashboard/MauiProgram.cs` | App bootstrap and dependency injection |
