@@ -1,0 +1,28 @@
+.task-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/*
+ * The inputs are rendered by the InputText/InputDate/InputSelect/InputNumber
+ * components, so they do not carry this component's scope attribute and a plain
+ * descendant selector would never match them. ::deep reaches through.
+ */
+.task-fields ::deep .field-title {
+    flex: 1 1 14rem;
+    min-width: 10rem;
+}
+
+.task-fields ::deep .field-deadline {
+    flex: 0 1 13rem;
+}
+
+.task-fields ::deep .field-priority {
+    flex: 0 1 8rem;
+}
+
+.task-fields ::deep .field-estimate {
+    flex: 0 1 7rem;
+}

@@ -5,7 +5,7 @@ using TodoApp.Models;
 namespace TodoApp.Services;
 
 /// <summary>
-/// Holds the to-do list and mirrors it into browser localStorage so it
+/// Holds the task list and mirrors it into browser localStorage so it
 /// survives a refresh.
 /// </summary>
 public class TodoService(IJSRuntime js)
@@ -44,7 +44,11 @@ public class TodoService(IJSRuntime js)
         loaded = true;
     }
 
-    public async Task AddAsync(string title)
+    public async Task AddAsync(
+        string title,
+        DateTimeOffset? deadline,
+        TaskPriority priority,
+        TimeSpan? estimatedTime)
     {
         title = title.Trim();
         if (title.Length == 0)
@@ -52,7 +56,14 @@ public class TodoService(IJSRuntime js)
             return;
         }
 
-        items.Add(new TodoItem { Title = title });
+        items.Add(new TodoItem
+        {
+            Title = title,
+            Deadline = deadline,
+            Priority = priority,
+            EstimatedTime = estimatedTime,
+        });
+
         await SaveAsync();
     }
 
@@ -68,16 +79,25 @@ public class TodoService(IJSRuntime js)
         await SaveAsync();
     }
 
-    public async Task RenameAsync(Guid id, string title)
+    public async Task UpdateAsync(
+        Guid id,
+        string title,
+        DateTimeOffset? deadline,
+        TaskPriority priority,
+        TimeSpan? estimatedTime)
     {
         title = title.Trim();
         var item = items.FirstOrDefault(i => i.Id == id);
-        if (item is null || title.Length == 0 || title == item.Title)
+        if (item is null || title.Length == 0)
         {
             return;
         }
 
         item.Title = title;
+        item.Deadline = deadline;
+        item.Priority = priority;
+        item.EstimatedTime = estimatedTime;
+
         await SaveAsync();
     }
 

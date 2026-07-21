@@ -12,18 +12,19 @@ built with **Blazor WebAssembly** (.NET 10).
 
 Task management, running entirely in the browser:
 
-- Add, rename, and delete tasks
-- Mark tasks done — double-click a task to rename it inline
-- Filter by All / Active / Completed
-- Remaining-task count and "clear completed"
+- Add, edit, and delete tasks — double-click a task or press **Edit** to change it inline
+- Each task carries a **deadline**, a **priority** (Low / Normal / High / Urgent), and an
+  **estimated time to complete**; all three are optional except the title
+- Overdue tasks are flagged, and the footer totals the estimated time still outstanding
+- Mark tasks done, filter by All / Active / Completed, and clear completed
 - Tasks persist in browser `localStorage`, so they survive a refresh
 
 ## Roadmap
 
 The direction is a dashboard, not just a list:
 
-- **Due dates and reminders** on tasks — the prerequisite for anything notification-shaped
-- **In-app notifications** for due and overdue tasks
+- **Sorting and grouping** by deadline and priority — the list is currently in creation order
+- **In-app notifications** for tasks that are due soon or overdue
 - **Browser notifications** via the Notification API, so reminders land outside the tab
 - **Dashboard view** — summary tiles (due today, overdue, completed this week) alongside the list
 - **Backend + sync** so tasks and notification state follow you across devices
@@ -40,9 +41,12 @@ Then open <http://localhost:5144>.
 
 | Path | Purpose |
 | --- | --- |
-| `TodoApp/Models/TodoItem.cs` | The task model |
+| `TodoApp/Models/TodoItem.cs` | The task model, including deadline, priority and estimate |
+| `TodoApp/Models/TaskPriority.cs` | Priority levels, serialized by name |
+| `TodoApp/Models/TaskForm.cs` | Editable shape of a task, shared by the add and edit forms |
 | `TodoApp/Models/TodoJsonContext.cs` | Source-generated JSON serializer |
 | `TodoApp/Services/TodoService.cs` | Task state and `localStorage` persistence |
+| `TodoApp/Components/TaskFields.razor` | The four task input fields, shared by both forms |
 | `TodoApp/Pages/Home.razor` | The task UI, served at `/` |
 
 The project directory is still named `TodoApp` from the original scaffold. It is
