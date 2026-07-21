@@ -67,9 +67,11 @@ Requires the .NET 10 SDK with the `maui-windows` and `android` workloads
 | `TaskDashboard/Models/TaskForm.cs` | Editable shape of a task, shared by the add and edit forms |
 | `TaskDashboard/Models/TodoJsonContext.cs` | Source-generated JSON serializer |
 | `TaskDashboard/Services/TodoService.cs` | Task state and file persistence |
-| `TaskDashboard/Components/TaskFields.razor` | The four task input fields, shared by both forms |
+| `TaskDashboard/Components/TaskFields.razor` | The four labeled task inputs, used inside the dialog |
+| `TaskDashboard/Components/TaskModal.razor` | The add/edit dialog shared by both flows |
 | `TaskDashboard/Components/Pages/Home.razor` | The task UI |
 | `TaskDashboard/MauiProgram.cs` | App bootstrap and dependency injection |
+| `tools/UiTest/` | End-to-end UI tests (Playwright over CDP against the running app) |
 
 ## Notes
 
@@ -83,9 +85,13 @@ reflection, so persistence keeps working under the trimming and AOT compilation
 MAUI applies to Android release builds.
 
 The UI is tested by driving the running native app over the Chrome DevTools
-Protocol: launching with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<port>`
-exposes the app's WebView2 to Playwright, which exercises add/edit/delete,
-validation, filters, and persistence across an app restart.
+Protocol: launching with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9333`
+exposes the app's WebView2 to Playwright. The suite lives in `tools/UiTest`:
+
+```bash
+dotnet run --project tools/UiTest -- suite   # full feature suite (resets the list)
+dotnet run --project tools/UiTest -- verify  # after an app restart: asserts persistence
+```
 
 ## Development
 
