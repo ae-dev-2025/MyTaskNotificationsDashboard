@@ -27,3 +27,6 @@ Desktop.ini
 *.nupkg
 packages/
 .nuget/
+
+# Android release signing key - never commit; see signing/README-BACKUP.txt
+signing/
