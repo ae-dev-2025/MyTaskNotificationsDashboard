@@ -1,0 +1,153 @@
+.cal-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1rem 0 0.75rem;
+}
+
+.cal-range {
+    margin-left: 0.5rem;
+    font-weight: 600;
+    color: #495057;
+}
+
+.cal-header {
+    display: grid;
+    grid-template-columns: 3.5rem repeat(7, 1fr);
+    border-bottom: 1px solid #dee2e6;
+}
+
+.cal-head-day {
+    padding: 0.35rem 0.4rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #495057;
+    border-left: 1px solid #eceff1;
+    text-align: center;
+}
+
+.cal-head-day.today {
+    color: #1b6ec2;
+    background: #eaf3fc;
+}
+
+.cal-scroll {
+    height: 60vh;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-top: none;
+}
+
+.cal-grid {
+    display: grid;
+    grid-template-columns: 3.5rem repeat(7, 1fr);
+    height: calc(24 * 48px);
+}
+
+.cal-gutter {
+    position: relative;
+    font-size: 0.7rem;
+    color: #868e96;
+}
+
+.cal-hour-label {
+    position: absolute;
+    right: 0.4rem;
+    transform: translateY(-50%);
+}
+
+.cal-day {
+    position: relative;
+    border-left: 1px solid #eceff1;
+    background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 47px,
+        #f1f3f5 47px,
+        #f1f3f5 48px);
+}
+
+.cal-day.today {
+    background-color: #f7fbff;
+}
+
+.cal-block {
+    position: absolute;
+    left: 3px;
+    right: 3px;
+    border-radius: 0.25rem;
+    padding: 0.1rem 0.3rem;
+    font-size: 0.72rem;
+    line-height: 1.25;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.cal-block-time {
+    font-weight: 600;
+    margin-right: 0.3rem;
+}
+
+/* Priority palette mirrors the list badges. */
+.cal-p-low {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.cal-p-normal {
+    background: #d5e5f7;
+    color: #1c4f82;
+}
+
+.cal-p-high {
+    background: #fde5cc;
+    color: #8a4b08;
+}
+
+.cal-p-urgent {
+    background: #f8d7da;
+    color: #842029;
+}
+
+.cal-slot.missed {
+    outline: 2px solid #b02a37;
+    outline-offset: -2px;
+}
+
+.cal-done {
+    background: #e6f4ea;
+    color: #1e7e34;
+    opacity: 0.75;
+}
+
+.cal-deadline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 2px dashed #b02a37;
+    font-size: 0.65rem;
+    color: #b02a37;
+    padding: 0 0.25rem;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.cal-now-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 2px solid #d6336c;
+    z-index: 3;
+    pointer-events: none;
+}
+
+.cal-now-line::before {
+    content: "";
+    position: absolute;
+    left: -1px;
+    top: -5px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #d6336c;
+}

@@ -1,0 +1,201 @@
+@page "/calendar"
+@inject TodoService Todos
+@inject IJSRuntime JS
+@implements IDisposable
+
+<h1>Calendar</h1>
+
+<div class="cal-toolbar">
+    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => ShiftWeek(-1)">‹ Previous week</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="GoToday">Today</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => ShiftWeek(1)">Next week ›</button>
+    <span class="cal-range">@WeekRangeText</span>
+</div>
+
+<div class="cal-header">
+    <div class="cal-gutter-spacer"></div>
+    @for (var d = 0; d < 7; d++)
+    {
+        var day = weekStart.AddDays(d);
+        <div class="cal-head-day @(day == Today ? "today" : null)">
+            @day.ToString("ddd d MMM")
+        </div>
+    }
+</div>
+
+<div class="cal-scroll" @ref="scrollArea">
+    <div class="cal-grid">
+        <div class="cal-gutter">
+            @for (var h = 0; h < 24; h++)
+            {
+                <div class="cal-hour-label" style="top:@(h * HourPx)px">@($"{h:00}:00")</div>
+            }
+        </div>
+
+        @for (var d = 0; d < 7; d++)
+        {
+            var day = weekStart.AddDays(d);
+            <div class="cal-day @(day == Today ? "today" : null)">
+                @foreach (var block in BlocksFor(day))
+                {
+                    <div class="@block.Css"
+                         style="top:@(block.Top)px;height:@(block.Height)px"
+                         title="@block.Tooltip">
+                        <span class="cal-block-time">@block.TimeText</span>
+                        <span class="cal-block-title">@block.Title</span>
+                    </div>
+                }
+
+                @foreach (var marker in DeadlinesFor(day))
+                {
+                    <div class="cal-deadline" style="top:@(marker.Top)px" title="@marker.Tooltip">
+                        <span>@marker.Title</span>
+                    </div>
+                }
+
+                @if (day == Today)
+                {
+                    <div class="cal-now-line" style="top:@(NowOffsetPx)px"></div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private const double HourPx = 48;
+    private static readonly TimeSpan PlanHorizon = TimeSpan.FromDays(14);
+
+    private DateTime weekStart;
+    private ElementReference scrollArea;
+    private readonly PeriodicTimer clock = new(TimeSpan.FromSeconds(60));
+
+    private static DateTime Today => DateTime.Today;
+
+    private static double NowOffsetPx => DateTime.Now.TimeOfDay.TotalHours * HourPx;
+
+    private string WeekRangeText =>
+        $"{weekStart:d MMM} – {weekStart.AddDays(6):d MMM yyyy}";
+
+    private sealed record Block(double Top, double Height, string Css, string TimeText, string Title, string Tooltip);
+    private sealed record Marker(double Top, string Title, string Tooltip);
+
+    protected override async Task OnInitializedAsync()
+    {
+        weekStart = StartOfWeek(Today);
+        await Todos.LoadAsync();
+        _ = TickAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Drop the viewport at 07:00 so the working day is in view.
+            await JS.InvokeVoidAsync("taskDashboard.scrollTo", scrollArea, 7 * HourPx);
+        }
+    }
+
+    private async Task TickAsync()
+    {
+        try
+        {
+            while (await clock.WaitForNextTickAsync())
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Component disposed.
+        }
+    }
+
+    public void Dispose() => clock.Dispose();
+
+    private static DateTime StartOfWeek(DateTime date)
+    {
+        var diff = ((int)date.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
+        return date.AddDays(-diff);
+    }
+
+    private void ShiftWeek(int direction) => weekStart = weekStart.AddDays(direction * 7);
+
+    private void GoToday() => weekStart = StartOfWeek(Today);
+
+    private IEnumerable<Block> BlocksFor(DateTime day)
+    {
+        var dayStart = new DateTimeOffset(day, DateTimeOffset.Now.Offset);
+        var dayEnd = dayStart.AddDays(1);
+
+        // Planned slots for unfinished work.
+        var plan = Planner.Plan(Todos.Items, Array.Empty<TimeRange>(), DateTimeOffset.Now, PlanHorizon);
+        foreach (var slot in plan)
+        {
+            if (slot.End <= dayStart || slot.Start >= dayEnd)
+            {
+                continue;
+            }
+
+            var task = Todos.Items.FirstOrDefault(t => t.Id == slot.TaskId);
+            if (task is null)
+            {
+                continue;
+            }
+
+            var (top, height) = Clip(slot.Start, slot.End, dayStart, dayEnd);
+            var css = $"cal-block cal-slot cal-p-{task.Priority.ToString().ToLowerInvariant()}{(slot.MissesDeadline ? " missed" : "")}";
+            var tooltip = slot.MissesDeadline
+                ? $"{task.Title} — planned {slot.Start.ToLocalTime():HH:mm}–{slot.End.ToLocalTime():HH:mm}, finishes after its deadline"
+                : $"{task.Title} — planned {slot.Start.ToLocalTime():HH:mm}–{slot.End.ToLocalTime():HH:mm}";
+
+            yield return new Block(top, height, css, slot.Start.ToLocalTime().ToString("HH:mm"), task.Title, tooltip);
+        }
+
+        // What was actually done: a dimmed block ending at CompletedAt.
+        foreach (var task in Todos.Items.Where(t => t.IsDone && t.CompletedAt is not null))
+        {
+            var end = task.CompletedAt!.Value.ToLocalTime();
+            var start = end - (task.EstimatedTime ?? Planner.DefaultEstimate);
+            if (end <= dayStart || start >= dayEnd)
+            {
+                continue;
+            }
+
+            var (top, height) = Clip(start, end, dayStart, dayEnd);
+            yield return new Block(
+                top, height, "cal-block cal-done",
+                end.ToString("HH:mm"),
+                $"✓ {task.Title}",
+                $"{task.Title} — completed {end:HH:mm}");
+        }
+    }
+
+    private IEnumerable<Marker> DeadlinesFor(DateTime day)
+    {
+        var dayStart = new DateTimeOffset(day, DateTimeOffset.Now.Offset);
+        var dayEnd = dayStart.AddDays(1);
+
+        foreach (var task in Todos.Items.Where(t => !t.IsDone && t.Deadline is not null))
+        {
+            var deadline = task.Deadline!.Value.ToLocalTime();
+            if (deadline < dayStart || deadline >= dayEnd)
+            {
+                continue;
+            }
+
+            var top = (deadline - dayStart).TotalHours * HourPx;
+            yield return new Marker(top, $"⚑ {task.Title}", $"Deadline: {task.Title}, {deadline:HH:mm}");
+        }
+    }
+
+    private static (double Top, double Height) Clip(
+        DateTimeOffset start, DateTimeOffset end, DateTimeOffset dayStart, DateTimeOffset dayEnd)
+    {
+        var visibleStart = start < dayStart ? dayStart : start;
+        var visibleEnd = end > dayEnd ? dayEnd : end;
+        var top = (visibleStart - dayStart).TotalHours * HourPx;
+        var height = Math.Max((visibleEnd - visibleStart).TotalHours * HourPx, 14);
+        return (top, height);
+    }
+}

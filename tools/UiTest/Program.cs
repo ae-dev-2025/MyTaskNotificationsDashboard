@@ -9,9 +9,11 @@ using static Microsoft.Playwright.Assertions;
 //   $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-port=9333'
 //   & TaskDashboard\bin\Debug\net10.0-windows10.0.19041.0\win-x64\TaskDashboard.exe
 //
-// Usage: dotnet run --project tools/UiTest -- <suite|verify> [screenshotDir]
-//   suite  — resets the list, then exercises every feature; leaves a known state
-//   verify — run after an app restart to assert the suite's end state persisted
+// Usage: dotnet run --project tools/UiTest -- <suite|calendar|verify> [screenshotDir]
+//   suite    — resets the list, then exercises every task feature; leaves a known state
+//   calendar — resets the list, seeds a planning fixture, asserts the week view
+//   verify   — run after an app restart to assert the suite's end state persisted
+//   (run calendar BEFORE suite: suite leaves the state that verify expects)
 
 var mode = args.Length > 0 ? args[0] : "suite";
 var shotDir = args.Length > 1 ? args[1] : ".";
@@ -20,6 +22,10 @@ var failures = 0;
 using var pw = await Playwright.CreateAsync();
 var browser = await pw.Chromium.ConnectOverCDPAsync("http://localhost:9333");
 var page = browser.Contexts[0].Pages[0];
+await page.WaitForSelectorAsync("h1");
+
+// Every mode starts from the Tasks page, wherever the app was left.
+await page.GetByRole(AriaRole.Link, new() { Name = "Tasks", Exact = true }).ClickAsync();
 await page.WaitForSelectorAsync("h1");
 
 var modal = page.Locator(".modal-panel");
@@ -70,6 +76,17 @@ async Task AddTask(string title, string? deadline, string? priority, string? est
     await Expect(modal).ToHaveCountAsync(0);
 }
 
+async Task ResetAllTasks()
+{
+    while (await page.Locator(".task-item").CountAsync() > 0)
+    {
+        await page.Locator(".task-item").First
+            .GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Delete") }).ClickAsync();
+        await page.WaitForTimeoutAsync(200);
+    }
+    await Expect(page.Locator(".task-empty")).ToHaveCountAsync(1);
+}
+
 if (mode == "verify")
 {
     await Step("persisted: exactly one task after restart", () =>
@@ -87,18 +104,75 @@ if (mode == "verify")
     return failures == 0 ? 0 : 1;
 }
 
+if (mode == "calendar")
+{
+    static string Dt(DateTime d) => d.ToString("yyyy-MM-ddTHH:mm");
+
+    await Step("reset: delete any existing tasks", ResetAllTasks);
+
+    await Step("seed: crunch task, tomorrow-noon deadline, no-deadline task", async () =>
+    {
+        // 120 min of work due in 30 min — the planner must flag this as missing
+        // its deadline no matter when the test runs.
+        await AddTask("Crunch task", Dt(DateTime.Now.AddMinutes(30)), "Urgent", "120");
+        await AddTask("Write spec", Dt(DateTime.Today.AddDays(1).AddHours(12)), "High", "60");
+        await AddTask("Email follow-up", null, "Normal", "30");
+        await Expect(page.Locator(".task-item")).ToHaveCountAsync(3);
+    });
+
+    await Step("seed: complete one task for the done layer", async () =>
+    {
+        await Row("Email follow-up").Locator("input[type=checkbox]").ClickAsync();
+        await Expect(page.Locator(".task-item.done")).ToHaveCountAsync(1);
+    });
+
+    await Step("calendar: reachable via nav link", async () =>
+    {
+        await page.GetByRole(AriaRole.Link, new() { Name = "Calendar" }).ClickAsync();
+        await Expect(page.Locator("h1")).ToHaveTextAsync("Calendar");
+    });
+
+    await Step("calendar: planned slots rendered, earliest-deadline first", async () =>
+    {
+        await Expect(page.Locator(".cal-slot", new() { HasTextString = "Crunch task" }).First).ToBeVisibleAsync();
+        await Expect(page.Locator(".cal-slot", new() { HasTextString = "Write spec" }).First).ToBeVisibleAsync();
+        // Plan order: Crunch (soonest deadline) is today's first slot.
+        await Expect(page.Locator(".cal-day.today .cal-slot").First).ToContainTextAsync("Crunch task");
+    });
+
+    await Step("calendar: impossible deadline is flagged", () =>
+        Expect(page.Locator(".cal-slot.missed").First).ToContainTextAsync("Crunch task"));
+
+    await Step("calendar: completed task appears as a done block", () =>
+        Expect(page.Locator(".cal-done").First).ToContainTextAsync("Email follow-up"));
+
+    await Step("calendar: deadline marker present", () =>
+        Expect(page.Locator(".cal-deadline").First).ToBeVisibleAsync());
+
+    await Step("calendar: now line drawn on today", () =>
+        Expect(page.Locator(".cal-now-line")).ToHaveCountAsync(1));
+
+    // Scroll the grid so the slots planned from "now" are actually in frame.
+    await page.EvalOnSelectorAsync(".cal-scroll",
+        "el => { el.scrollTop = Math.max(0, (new Date().getHours() - 1.5) * 48); }");
+    await Shot("cal-01-week.png");
+
+    await Step("calendar: week navigation moves off today and back", async () =>
+    {
+        await page.GetByRole(AriaRole.Button, new() { Name = "Next week ›" }).ClickAsync();
+        await Expect(page.Locator(".cal-now-line")).ToHaveCountAsync(0);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Today", Exact = true }).ClickAsync();
+        await Expect(page.Locator(".cal-now-line")).ToHaveCountAsync(1);
+    });
+    await Shot("cal-02-back-today.png");
+
+    Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
+    return failures == 0 ? 0 : 1;
+}
+
 // ---- full suite ----
 
-await Step("reset: delete any existing tasks", async () =>
-{
-    while (await page.Locator(".task-item").CountAsync() > 0)
-    {
-        await page.Locator(".task-item").First
-            .GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Delete") }).ClickAsync();
-        await page.WaitForTimeoutAsync(200);
-    }
-    await Expect(page.Locator(".task-empty")).ToHaveCountAsync(1);
-});
+await Step("reset: delete any existing tasks", ResetAllTasks);
 await Shot("ui-01-empty.png");
 
 await Step("modal: opens with labeled fields and focuses title", async () =>
