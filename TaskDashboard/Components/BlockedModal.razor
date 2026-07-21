@@ -1,0 +1,137 @@
+@* Add/edit dialog for a blocked period. Mirrors the TaskModal pattern. *@
+
+<div class="modal-backdrop-area" @onclick="() => OnCancel.InvokeAsync()">
+    <div class="modal-panel"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="blocked-modal-title"
+         @onclick:stopPropagation
+         @onkeydown="HandleKeyAsync">
+        <h2 id="blocked-modal-title">@Title</h2>
+
+        <EditForm Model="Form" OnValidSubmit="() => OnSave.InvokeAsync()">
+            <DataAnnotationsValidator />
+
+            <div class="blocked-fields">
+                <div class="field">
+                    <label for="blocked-label">Label</label>
+                    <InputText id="blocked-label"
+                               @bind-Value="Form.Label"
+                               class="form-control"
+                               placeholder="e.g. Sleep, Gym, Dentist" />
+                </div>
+
+                <div class="field">
+                    <label for="blocked-repeats">Repeats</label>
+                    <InputSelect id="blocked-repeats" @bind-Value="Form.IsRecurring" class="form-select">
+                        <option value="true">Every week</option>
+                        <option value="false">One-off</option>
+                    </InputSelect>
+                </div>
+
+                @if (Form.IsRecurring)
+                {
+                    <fieldset class="field">
+                        <legend>Days</legend>
+                        <div class="day-toggles">
+                            @foreach (var day in WeekDays)
+                            {
+                                var id = $"day-{day.ToString().ToLowerInvariant()}";
+                                <span class="day-toggle">
+                                    <input type="checkbox"
+                                           id="@id"
+                                           class="form-check-input"
+                                           checked="@Form.Days.Contains(day)"
+                                           @onchange="e => ToggleDay(day, e)" />
+                                    <label for="@id">@day.ToString()[..3]</label>
+                                </span>
+                            }
+                        </div>
+                    </fieldset>
+
+                    <div class="field">
+                        <label for="blocked-start-time">Start time</label>
+                        <InputDate id="blocked-start-time"
+                                   Type="InputDateType.Time"
+                                   @bind-Value="Form.StartTime"
+                                   class="form-control" />
+                    </div>
+
+                    <div class="field">
+                        <label for="blocked-end-time">End time</label>
+                        <InputDate id="blocked-end-time"
+                                   Type="InputDateType.Time"
+                                   @bind-Value="Form.EndTime"
+                                   class="form-control" />
+                        <small class="field-hint">An end at or before the start crosses midnight (e.g. 23:00–07:00).</small>
+                    </div>
+                }
+                else
+                {
+                    <div class="field">
+                        <label for="blocked-start">Start</label>
+                        <InputDate id="blocked-start"
+                                   Type="InputDateType.DateTimeLocal"
+                                   @bind-Value="Form.Start"
+                                   class="form-control" />
+                    </div>
+
+                    <div class="field">
+                        <label for="blocked-end">End</label>
+                        <InputDate id="blocked-end"
+                                   Type="InputDateType.DateTimeLocal"
+                                   @bind-Value="Form.End"
+                                   class="form-control" />
+                    </div>
+                }
+            </div>
+
+            <ValidationSummary />
+
+            <div class="modal-actions">
+                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="() => OnCancel.InvokeAsync()">
+                    Cancel
+                </button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private static readonly DayOfWeek[] WeekDays =
+    [
+        DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday,
+        DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday,
+    ];
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public BlockedForm Form { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private void ToggleDay(DayOfWeek day, ChangeEventArgs e)
+    {
+        if (e.Value is true)
+        {
+            if (!Form.Days.Contains(day))
+            {
+                Form.Days.Add(day);
+            }
+        }
+        else
+        {
+            Form.Days.Remove(day);
+        }
+    }
+
+    private Task HandleKeyAsync(KeyboardEventArgs e) =>
+        e.Key == "Escape" ? OnCancel.InvokeAsync() : Task.CompletedTask;
+}

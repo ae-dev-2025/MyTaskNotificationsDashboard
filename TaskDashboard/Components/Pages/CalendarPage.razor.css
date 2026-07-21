@@ -114,6 +114,18 @@
     outline-offset: -2px;
 }
 
+.cal-blocked {
+    background: repeating-linear-gradient(
+        45deg,
+        #e9ecef 0,
+        #e9ecef 6px,
+        #f4f5f7 6px,
+        #f4f5f7 12px);
+    color: #868e96;
+    box-shadow: none;
+    z-index: 0;
+}
+
 .cal-done {
     background: #e6f4ea;
     color: #1e7e34;

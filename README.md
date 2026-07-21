@@ -34,12 +34,14 @@ added later by restoring their target frameworks in
   shorter estimate), deadlines draw as markers, a slot that cannot finish before
   its deadline is flagged, completed tasks appear dimmed at the time they were
   finished, and a now-line tracks the current minute
+- **Blocked time**: recurring weekly windows (sleep, work hours — windows may
+  cross midnight) and one-off periods (appointments). The planner schedules
+  around them, and they draw as striped shading on the calendar
 - Tasks persist to a JSON file in the app's private data directory, written
   atomically so an ill-timed crash cannot corrupt the list
 
 ## Roadmap
 
-- **Blocked time** — recurring and one-off periods the planner must schedule around
 - **Dashboard home** — Now / Up next / Done panels answering what you should be
   doing at this minute
 - **Local notifications** for tasks that are due soon or overdue — the reason
@@ -72,12 +74,14 @@ Requires the .NET 10 SDK with the `maui-windows` and `android` workloads
 | `TaskDashboard/Models/TaskPriority.cs` | Priority levels, serialized by name |
 | `TaskDashboard/Models/TaskForm.cs` | Editable shape of a task, shared by the add and edit forms |
 | `TaskDashboard/Models/TodoJsonContext.cs` | Source-generated JSON serializer |
-| `TaskDashboard/Services/TodoService.cs` | Task state and file persistence |
+| `TaskDashboard/Services/DashboardService.cs` | Tasks + blocked periods, single-file atomic persistence |
+| `TaskDashboard/Models/BlockedPeriod.cs` | A recurring or one-off period the planner schedules around |
 | `TaskDashboard/Components/TaskFields.razor` | The four labeled task inputs, used inside the dialog |
 | `TaskDashboard/Components/TaskModal.razor` | The add/edit dialog shared by both flows |
 | `TaskDashboard/Services/Planner.cs` | Deterministic auto-planner placing tasks into free time |
 | `TaskDashboard/Components/Pages/Home.razor` | The task list UI |
 | `TaskDashboard/Components/Pages/CalendarPage.razor` | The week-timeline calendar |
+| `TaskDashboard/Components/Pages/BlockedTimePage.razor` | Blocked-time management |
 | `TaskDashboard/MauiProgram.cs` | App bootstrap and dependency injection |
 | `tools/UiTest/` | End-to-end UI tests (Playwright over CDP against the running app) |
 

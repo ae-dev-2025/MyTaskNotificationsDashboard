@@ -9,11 +9,15 @@ using static Microsoft.Playwright.Assertions;
 //   $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-port=9333'
 //   & TaskDashboard\bin\Debug\net10.0-windows10.0.19041.0\win-x64\TaskDashboard.exe
 //
-// Usage: dotnet run --project tools/UiTest -- <suite|calendar|verify> [screenshotDir]
-//   suite    — resets the list, then exercises every task feature; leaves a known state
-//   calendar — resets the list, seeds a planning fixture, asserts the week view
-//   verify   — run after an app restart to assert the suite's end state persisted
-//   (run calendar BEFORE suite: suite leaves the state that verify expects)
+// Usage: dotnet run --project tools/UiTest -- <mode> [screenshotDir]
+//   suite         — resets the list, then exercises every task feature; leaves a known state
+//   calendar      — resets the list, seeds a planning fixture, asserts the week view
+//   verify        — after an app restart: asserts the suite's end state persisted
+//   blocked       — blocked-time CRUD + planner routing around blocks
+//   blockedverify — after an app restart: asserts blocked periods persisted
+//   migrated      — after seeding a legacy v1 tasks.json: asserts it loaded intact
+// Recommended order: calendar, suite, restart, verify, blocked, restart,
+// blockedverify, migration seed + restart, migrated.
 
 var mode = args.Length > 0 ? args[0] : "suite";
 var shotDir = args.Length > 1 ? args[1] : ".";
@@ -87,6 +91,12 @@ async Task ResetAllTasks()
     await Expect(page.Locator(".task-empty")).ToHaveCountAsync(1);
 }
 
+async Task NavTo(string link, string heading)
+{
+    await page.GetByRole(AriaRole.Link, new() { Name = link, Exact = true }).ClickAsync();
+    await Expect(page.Locator("h1")).ToHaveTextAsync(heading);
+}
+
 if (mode == "verify")
 {
     await Step("persisted: exactly one task after restart", () =>
@@ -100,6 +110,132 @@ if (mode == "verify")
     await Step("persisted: footer totals restored", () =>
         Expect(footer).ToContainTextAsync("1 task left"));
     await Shot("ui-verify-restart.png");
+    Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
+    return failures == 0 ? 0 : 1;
+}
+
+if (mode == "blocked")
+{
+    static string Dt(DateTime d) => d.ToString("yyyy-MM-ddTHH:mm");
+    var lunchStart = DateTime.Now.AddMinutes(10);
+    var lunchEnd = DateTime.Now.AddMinutes(40);
+
+    await Step("blocked: page reachable via nav link", () => NavTo("Blocked time", "Blocked time"));
+
+    await Step("blocked: reset any existing periods", async () =>
+    {
+        while (await page.Locator(".blocked-item").CountAsync() > 0)
+        {
+            await page.Locator(".blocked-item").First
+                .GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Delete") }).ClickAsync();
+            await page.WaitForTimeoutAsync(200);
+        }
+        await Expect(page.Locator(".blocked-empty")).ToHaveCountAsync(1);
+    });
+
+    await Step("blocked: validation rejects a missing label", async () =>
+    {
+        await page.GetByRole(AriaRole.Button, new() { Name = "Add blocked time" }).ClickAsync();
+        await modal.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+        await Expect(modal.Locator(".validation-errors li").First).ToContainTextAsync("Give the period a label.");
+        await modal.GetByRole(AriaRole.Button, new() { Name = "Cancel" }).ClickAsync();
+    });
+
+    await Step("blocked: add recurring Sleep with default nightly window", async () =>
+    {
+        await page.GetByRole(AriaRole.Button, new() { Name = "Add blocked time" }).ClickAsync();
+        await modal.GetByLabel("Label").FillAsync("Sleep");
+        await modal.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+        await Expect(page.Locator(".blocked-item", new() { HasTextString = "Sleep" })).ToHaveCountAsync(1);
+        await Expect(page.Locator(".blocked-item", new() { HasTextString = "Sleep" }))
+            .ToContainTextAsync("Every day, 23:00 – 07:00 (next day)");
+    });
+
+    await Step("blocked: add a one-off Lunch break", async () =>
+    {
+        await page.GetByRole(AriaRole.Button, new() { Name = "Add blocked time" }).ClickAsync();
+        await modal.GetByLabel("Label").FillAsync("Lunch break");
+        await modal.GetByLabel("Repeats").SelectOptionAsync(new SelectOptionValue { Label = "One-off" });
+        await modal.GetByLabel("Start", new() { Exact = true }).FillAsync(Dt(lunchStart));
+        await modal.GetByLabel("End", new() { Exact = true }).FillAsync(Dt(lunchEnd));
+        await modal.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+        await Expect(page.Locator(".blocked-item")).ToHaveCountAsync(2);
+    });
+    await Shot("blk-01-list.png");
+
+    await Step("seed: one unestimated-deadline-free task to plan", async () =>
+    {
+        await NavTo("Tasks", "Tasks");
+        await ResetAllTasks();
+        await AddTask("Deep work", null, null, "30");
+    });
+
+    await Step("calendar: blocked shading rendered for Sleep and Lunch", async () =>
+    {
+        await NavTo("Calendar", "Calendar");
+        var sleepBlocks = await page.Locator(".cal-blocked", new() { HasTextString = "Sleep" }).CountAsync();
+        if (sleepBlocks < 7)
+        {
+            throw new Exception($"expected >=7 Sleep shading blocks across the week, found {sleepBlocks}");
+        }
+        await Expect(page.Locator(".cal-day.today .cal-blocked", new() { HasTextString = "Lunch break" }))
+            .ToHaveCountAsync(1);
+    });
+
+    await Step("planner: task routed to after the lunch block", async () =>
+    {
+        var lunch = page.Locator(".cal-day.today .cal-blocked", new() { HasTextString = "Lunch break" });
+        var slot = page.Locator(".cal-day.today .cal-slot", new() { HasTextString = "Deep work" });
+        await Expect(slot).ToHaveCountAsync(1);
+
+        var lunchBox = await lunch.BoundingBoxAsync() ?? throw new Exception("no lunch box");
+        var slotBox = await slot.BoundingBoxAsync() ?? throw new Exception("no slot box");
+        if (slotBox.Y < lunchBox.Y + lunchBox.Height - 2)
+        {
+            throw new Exception(
+                $"Deep work starts at y={slotBox.Y:0} but lunch runs to y={lunchBox.Y + lunchBox.Height:0} — not routed around");
+        }
+    });
+
+    // Scroll the grid so the interesting region is in frame.
+    await page.EvalOnSelectorAsync(".cal-scroll",
+        "el => { el.scrollTop = Math.max(0, (new Date().getHours() - 1.5) * 48); }");
+    await Shot("blk-02-calendar.png");
+
+    Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
+    return failures == 0 ? 0 : 1;
+}
+
+if (mode == "blockedverify")
+{
+    await Step("persisted: blocked periods survived restart", async () =>
+    {
+        await NavTo("Blocked time", "Blocked time");
+        await Expect(page.Locator(".blocked-item")).ToHaveCountAsync(2);
+        await Expect(page.Locator(".blocked-item", new() { HasTextString = "Sleep" })).ToHaveCountAsync(1);
+        await Expect(page.Locator(".blocked-item", new() { HasTextString = "Lunch break" })).ToHaveCountAsync(1);
+    });
+
+    await Step("persisted: tasks survived restart alongside blocks", async () =>
+    {
+        await NavTo("Tasks", "Tasks");
+        await Expect(Row("Deep work")).ToHaveCountAsync(1);
+    });
+
+    Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
+    return failures == 0 ? 0 : 1;
+}
+
+if (mode == "migrated")
+{
+    await Step("migration: legacy v1 task loaded intact", async () =>
+    {
+        await Expect(page.Locator(".task-item")).ToHaveCountAsync(1);
+        await Expect(Row("Legacy task")).ToHaveCountAsync(1);
+        await Expect(Row("Legacy task").Locator(".badge.priority")).ToHaveTextAsync(new Regex("Low"));
+        await Expect(Row("Legacy task").Locator(".estimate")).ToContainTextAsync("15m");
+    });
+
     Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
     return failures == 0 ? 0 : 1;
 }
