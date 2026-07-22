@@ -4,26 +4,29 @@
 @implements IDisposable
 
 <h1>Calendar</h1>
+<p class="cal-subtitle">@WeekRangeText</p>
 
 <div class="cal-toolbar">
-    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => ShiftWeek(-1)">‹ Previous week</button>
-    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="GoToday">Today</button>
-    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => ShiftWeek(1)">Next week ›</button>
-    <span class="cal-range">@WeekRangeText</span>
+    <div class="btn-group" role="group" aria-label="Week navigation">
+        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => ShiftWeek(-1)">‹ Previous week</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="GoToday" disabled="@IsCurrentWeek">Today</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => ShiftWeek(1)">Next week ›</button>
+    </div>
 </div>
 
-<div class="cal-header">
-    <div class="cal-gutter-spacer"></div>
-    @for (var d = 0; d < 7; d++)
-    {
-        var day = weekStart.AddDays(d);
-        <div class="cal-head-day @(day == Today ? "today" : null)">
-            @day.ToString("ddd d MMM")
-        </div>
-    }
-</div>
+@{ var week = BuildWeek(); }
 
 <div class="cal-scroll" @ref="scrollArea">
+    <div class="cal-header">
+        <div class="cal-gutter-spacer"></div>
+        @foreach (var day in week.Days)
+        {
+            <div class="cal-head-day @(day.IsToday ? "today" : null) @(day.IsWeekend ? "weekend" : null)">
+                @day.Date.ToString("ddd d MMM")
+            </div>
+        }
+    </div>
+
     <div class="cal-grid">
         <div class="cal-gutter">
             @for (var h = 0; h < 24; h++)
@@ -32,11 +35,10 @@
             }
         </div>
 
-        @for (var d = 0; d < 7; d++)
+        @foreach (var day in week.Days)
         {
-            var day = weekStart.AddDays(d);
-            <div class="cal-day @(day == Today ? "today" : null)">
-                @foreach (var block in BlocksFor(day))
+            <div class="cal-day @(day.IsToday ? "today" : null) @(day.IsWeekend ? "weekend" : null)">
+                @foreach (var block in day.Blocks)
                 {
                     <div class="@block.Css"
                          style="top:@(block.Top)px;height:@(block.Height)px"
@@ -46,20 +48,25 @@
                     </div>
                 }
 
-                @foreach (var marker in DeadlinesFor(day))
+                @foreach (var marker in day.Markers)
                 {
                     <div class="cal-deadline" style="top:@(marker.Top)px" title="@marker.Tooltip">
-                        <span>@marker.Title</span>
+                        <span class="cal-deadline-chip">@marker.Title</span>
                     </div>
                 }
 
-                @if (day == Today)
+                @if (day.IsToday)
                 {
-                    <div class="cal-now-line" style="top:@(NowOffsetPx)px"></div>
+                    <div class="cal-now-line" style="top:@(NowOffsetPx)px" data-time="@DateTime.Now.ToString("HH:mm")"></div>
                 }
             </div>
         }
     </div>
+
+    @if (week.Empty)
+    {
+        <div class="cal-empty">Nothing scheduled this week</div>
+    }
 </div>
 
 @code {
@@ -74,11 +81,15 @@
 
     private static double NowOffsetPx => DateTime.Now.TimeOfDay.TotalHours * HourPx;
 
+    private bool IsCurrentWeek => weekStart == StartOfWeek(Today);
+
     private string WeekRangeText =>
         $"{weekStart:d MMM} – {weekStart.AddDays(6):d MMM yyyy}";
 
     private sealed record Block(double Top, double Height, string Css, string TimeText, string Title, string Tooltip);
     private sealed record Marker(double Top, string Title, string Tooltip);
+    private sealed record DayView(DateTime Date, bool IsToday, bool IsWeekend, List<Block> Blocks, List<Marker> Markers);
+    private sealed record WeekView(List<DayView> Days, bool Empty);
 
     protected override async Task OnInitializedAsync()
     {
@@ -130,25 +141,48 @@
 
     private void GoToday() => weekStart = StartOfWeek(Today);
 
-    private IEnumerable<Block> BlocksFor(DateTime day)
+    /// <summary>Computes the whole visible week in one pass: one planner run,
+    /// then per-day clipping.</summary>
+    private WeekView BuildWeek()
+    {
+        var now = DateTimeOffset.Now;
+        var busy = BlockedTime.Expand(Todos.BlockedPeriods, now, now + PlanHorizon);
+        var plan = Planner.Plan(Todos.Items, busy, now, PlanHorizon, Todos.BreakBetweenTasks);
+
+        var days = new List<DayView>(7);
+        for (var d = 0; d < 7; d++)
+        {
+            var date = weekStart.AddDays(d);
+            days.Add(new DayView(
+                date,
+                date == Today,
+                date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday,
+                BlocksFor(date, plan),
+                DeadlinesFor(date)));
+        }
+
+        var empty = days.All(day => day.Blocks.Count == 0 && day.Markers.Count == 0);
+        return new WeekView(days, empty);
+    }
+
+    private List<Block> BlocksFor(DateTime day, List<PlannedSlot> plan)
     {
         var dayStart = new DateTimeOffset(day, DateTimeOffset.Now.Offset);
         var dayEnd = dayStart.AddDays(1);
+        var blocks = new List<Block>();
 
         // Blocked time shades the background of the column.
         foreach (var (period, range) in BlockedTime.ExpandDetailed(Todos.BlockedPeriods, dayStart, dayEnd))
         {
             var (top, height) = Clip(range.Start, range.End, dayStart, dayEnd);
-            yield return new Block(
+            blocks.Add(new Block(
                 top, height, "cal-block cal-blocked",
                 range.Start.ToLocalTime().ToString("HH:mm"),
                 period.Label,
-                $"Blocked: {period.Label}");
+                $"Blocked: {period.Label}"));
         }
 
         // Planned slots for unfinished work, routed around blocked time.
-        var busy = BlockedTime.Expand(Todos.BlockedPeriods, DateTimeOffset.Now, DateTimeOffset.Now + PlanHorizon);
-        var plan = Planner.Plan(Todos.Items, busy, DateTimeOffset.Now, PlanHorizon, Todos.BreakBetweenTasks);
         foreach (var slot in plan)
         {
             if (slot.End <= dayStart || slot.Start >= dayEnd)
@@ -172,7 +206,7 @@
                 tooltip += " (in progress)";
             }
 
-            yield return new Block(top, height, css, slot.Start.ToLocalTime().ToString("HH:mm"), task.Title, tooltip);
+            blocks.Add(new Block(top, height, css, slot.Start.ToLocalTime().ToString("HH:mm"), task.Title, tooltip));
         }
 
         // What was actually done. When the task was started, [StartedAt,
@@ -190,18 +224,21 @@
             }
 
             var (top, height) = Clip(start, end, dayStart, dayEnd);
-            yield return new Block(
+            blocks.Add(new Block(
                 top, height, "cal-block cal-done",
                 end.ToString("HH:mm"),
                 $"✓ {task.Title}",
-                $"{task.Title} — completed {end:HH:mm}");
+                $"{task.Title} — completed {end:HH:mm}"));
         }
+
+        return blocks;
     }
 
-    private IEnumerable<Marker> DeadlinesFor(DateTime day)
+    private List<Marker> DeadlinesFor(DateTime day)
     {
         var dayStart = new DateTimeOffset(day, DateTimeOffset.Now.Offset);
         var dayEnd = dayStart.AddDays(1);
+        var markers = new List<Marker>();
 
         foreach (var task in Todos.Items.Where(t => !t.IsDone && t.Deadline is not null))
         {
@@ -212,8 +249,10 @@
             }
 
             var top = (deadline - dayStart).TotalHours * HourPx;
-            yield return new Marker(top, $"⚑ {task.Title}", $"Deadline: {task.Title}, {deadline:HH:mm}");
+            markers.Add(new Marker(top, $"⚑ {task.Title}", $"Deadline: {task.Title}, {deadline:HH:mm}"));
         }
+
+        return markers;
     }
 
     private static (double Top, double Height) Clip(

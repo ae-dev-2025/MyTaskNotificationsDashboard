@@ -37,6 +37,11 @@
     --backdrop: rgba(15, 23, 42, 0.45);
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
     --panel-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+    --weekend-tint: #fafbfc;
+    --p-low-accent: #868e96;
+    --p-normal-accent: #1b6ec2;
+    --p-high-accent: #e8871a;
+    --p-urgent-accent: #dc3545;
 }
 
 [data-bs-theme=dark] {
@@ -75,6 +80,11 @@
     --backdrop: rgba(0, 0, 0, 0.6);
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
     --panel-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+    --weekend-tint: #1e2328;
+    --p-low-accent: #9aa4ad;
+    --p-normal-accent: #4d9fe8;
+    --p-high-accent: #f0a04b;
+    --p-urgent-accent: #e4606d;
 }
 
 html, body {

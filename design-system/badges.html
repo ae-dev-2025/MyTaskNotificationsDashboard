@@ -1,0 +1,25 @@
+<!-- @dsCard group="Components" -->
+<!doctype html><html><head><meta charset="utf-8"><title>Priority badges</title>
+<style>
+body{font-family:'Helvetica Neue',Arial,sans-serif;margin:0;display:flex}
+.theme{flex:1;padding:1rem;display:flex;flex-direction:column;gap:.5rem;align-items:flex-start}
+.light{background:#fff}.dark{background:#16191d}
+.badge{display:inline-block;padding:.35em .65em;font-size:.75em;font-weight:600;line-height:1;border-radius:.375rem;letter-spacing:.01em}
+.light .low{background:#e9ecef;color:#495057}.light .normal{background:#d5e5f7;color:#1c4f82}
+.light .high{background:#fde5cc;color:#8a4b08}.light .urgent{background:#f8d7da;color:#842029}
+.light .prog{background:#cfe2ff;color:#084298}
+.dark .low{background:#343a40;color:#ced4da}.dark .normal{background:#163a5e;color:#9cc7ef}
+.dark .high{background:#4c3010;color:#f3c088}.dark .urgent{background:#4a1d22;color:#f1a6ad}
+.dark .prog{background:#143a66;color:#9ec5f2}
+</style></head><body>
+<div class="theme light">
+<span class="badge low">Low</span><span class="badge normal">Normal</span>
+<span class="badge high">High</span><span class="badge urgent">Urgent</span>
+<span class="badge prog">in progress</span>
+</div>
+<div class="theme dark">
+<span class="badge low">Low</span><span class="badge normal">Normal</span>
+<span class="badge high">High</span><span class="badge urgent">Urgent</span>
+<span class="badge prog">in progress</span>
+</div>
+</body></html>

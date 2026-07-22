@@ -132,6 +132,7 @@ Requires the .NET 10 SDK with the `maui-windows` and `android` workloads
 | `TaskDashboard/Components/Pages/Dashboard.razor` | The home page: Now / Up next / Done |
 | `TaskDashboard/Components/Pages/Home.razor` | The task list UI, at `/tasks` |
 | `TaskDashboard/Components/Pages/CalendarPage.razor` | The week-timeline calendar |
+| `design-system/` | Self-contained component previews, published to Claude Design |
 | `TaskDashboard/Components/Pages/BlockedTimePage.razor` | Blocked-time management |
 | `TaskDashboard/MauiProgram.cs` | App bootstrap and dependency injection |
 | `tools/UiTest/` | End-to-end UI tests for Windows (Playwright over CDP) |
@@ -185,6 +186,13 @@ WebViews (observed: Samsung, Chromium 150) never answer
 run; use `adb shell screencap` when a picture matters. Deploying to an arm64
 phone after an x86_64 emulator needs `-p:RuntimeIdentifiers=android-arm64`
 (or a clean) to rebuild for the right ABI.
+
+## Design system
+
+The UI's tokens (light + dark), badges, tiles, panels and calendar blocks are
+documented as self-contained previews in `design-system/` and published to a
+[Claude Design](https://claude.ai/design) project ("Task Dashboard Design
+System") for visual browsing and iteration.
 
 ## Development
 
