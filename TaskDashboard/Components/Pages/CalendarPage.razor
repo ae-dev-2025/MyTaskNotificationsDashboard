@@ -1,4 +1,4 @@
-@page "/calendar"
+﻿@page "/calendar"
 @inject DashboardService Todos
 @inject IJSRuntime JS
 @implements IDisposable
@@ -41,9 +41,16 @@
                 @foreach (var block in day.Blocks)
                 {
                     <div class="@block.Css"
-                         style="top:@(block.Top)px;height:@(block.Height)px"
+                         style="top:@(block.Top)px;height:@(block.Height)px;@block.LaneStyle"
                          title="@block.Tooltip">
                         <span class="cal-block-time">@block.TimeText</span>
+                        @if (block.Late)
+                        {
+                            @* First line, beside the time: the title wraps and
+                               deadline markers overlay lower lines, so this is
+                               the one row that is always legible. *@
+                            <span class="cal-late">late</span>
+                        }
                         <span class="cal-block-title">@block.Title</span>
                     </div>
                 }
@@ -65,12 +72,17 @@
 
     @if (week.Empty)
     {
-        <div class="cal-empty">Nothing scheduled this week</div>
+        <div class="cal-empty">Nothing scheduled this week.</div>
     }
 </div>
 
 @code {
     private const double HourPx = 48;
+
+    /// <summary>Readability floor for a rendered block: enough for one line of
+    /// the 0.72rem block label. Anything shorter is inflated, so pixel maths
+    /// over small blocks overstates their real duration.</summary>
+    private const double MinBlockPx = 20;
     private static readonly TimeSpan PlanHorizon = TimeSpan.FromDays(14);
 
     private DateTime weekStart;
@@ -86,7 +98,22 @@
     private string WeekRangeText =>
         $"{weekStart:d MMM} – {weekStart.AddDays(6):d MMM yyyy}";
 
-    private sealed record Block(double Top, double Height, string Css, string TimeText, string Title, string Tooltip);
+    /// <summary>A rendered column entry. <paramref name="Lane"/> and
+    /// <paramref name="LaneCount"/> come from <see cref="AssignLanes"/>; blocked
+    /// shading keeps the default single full-width lane.</summary>
+    private sealed record Block(
+        double Top, double Height, string Css, string TimeText, string Title, string Tooltip,
+        bool Late = false, int Lane = 0, int LaneCount = 1)
+    {
+        /// <summary>Side-by-side split. Mirrors the 3px inset `.cal-block`
+        /// applies, minus a 2px gutter so neighbouring lanes stay readable.
+        /// `left` + `width` over-constrain the box, so the CSS `right` is
+        /// dropped by the layout engine — which is what we want here.</summary>
+        public string LaneStyle => LaneCount <= 1
+            ? string.Empty
+            : $"left:calc(3px + (100% - 6px) * {Lane} / {LaneCount});" +
+              $"width:calc((100% - 6px) / {LaneCount} - 2px);";
+    }
     private sealed record Marker(double Top, string Title, string Tooltip);
     private sealed record DayView(DateTime Date, bool IsToday, bool IsWeekend, List<Block> Blocks, List<Marker> Markers);
     private sealed record WeekView(List<DayView> Days, bool Empty);
@@ -171,6 +198,11 @@
         var dayEnd = dayStart.AddDays(1);
         var blocks = new List<Block>();
 
+        // Foreground entries — planned slots and completed work — share the
+        // column and get split into lanes below. Blocked shading stays behind
+        // them at full width, so it is deliberately not laid out.
+        var laid = new List<Block>();
+
         // Blocked time shades the background of the column.
         foreach (var (period, range) in BlockedTime.ExpandDetailed(Todos.BlockedPeriods, dayStart, dayEnd))
         {
@@ -206,7 +238,9 @@
                 tooltip += " (in progress)";
             }
 
-            blocks.Add(new Block(top, height, css, slot.Start.ToLocalTime().ToString("HH:mm"), task.Title, tooltip));
+            laid.Add(new Block(
+                top, height, css, slot.Start.ToLocalTime().ToString("HH:mm"), task.Title, tooltip,
+                Late: slot.MissesDeadline));
         }
 
         // What was actually done. When the task was started, [StartedAt,
@@ -224,14 +258,76 @@
             }
 
             var (top, height) = Clip(start, end, dayStart, dayEnd);
-            blocks.Add(new Block(
+            laid.Add(new Block(
                 top, height, "cal-block cal-done",
                 end.ToString("HH:mm"),
                 $"✓ {task.Title}",
                 $"{task.Title} — completed {end:HH:mm}"));
         }
 
+        blocks.AddRange(AssignLanes(laid));
         return blocks;
+    }
+
+    /// <summary>Standard day-calendar column split. Walks blocks in start order,
+    /// building maximal clusters of mutually overlapping entries; within a
+    /// cluster each block takes the first lane that has already ended, and every
+    /// member is stamped with the cluster's final lane count so the CSS widths
+    /// agree. Heights are the post-<see cref="Clip"/> clamped ones on purpose:
+    /// two short tasks that only overlap because of the readability clamp still
+    /// visually collide, so they should still be split.</summary>
+    private static List<Block> AssignLanes(List<Block> blocks)
+    {
+        if (blocks.Count < 2)
+        {
+            return blocks;
+        }
+
+        var ordered = blocks.OrderBy(b => b.Top).ThenByDescending(b => b.Height).ToList();
+        var result = new List<Block>(ordered.Count);
+        var cluster = new List<Block>();
+        var laneOf = new List<int>();
+        var laneEnds = new List<double>();
+        var clusterEnd = double.NegativeInfinity;
+
+        void Flush()
+        {
+            for (var i = 0; i < cluster.Count; i++)
+            {
+                result.Add(cluster[i] with { Lane = laneOf[i], LaneCount = laneEnds.Count });
+            }
+
+            cluster.Clear();
+            laneOf.Clear();
+            laneEnds.Clear();
+            clusterEnd = double.NegativeInfinity;
+        }
+
+        foreach (var block in ordered)
+        {
+            if (block.Top >= clusterEnd)
+            {
+                Flush();
+            }
+
+            var lane = laneEnds.FindIndex(end => end <= block.Top);
+            if (lane < 0)
+            {
+                laneEnds.Add(block.Top + block.Height);
+                lane = laneEnds.Count - 1;
+            }
+            else
+            {
+                laneEnds[lane] = block.Top + block.Height;
+            }
+
+            cluster.Add(block);
+            laneOf.Add(lane);
+            clusterEnd = Math.Max(clusterEnd, block.Top + block.Height);
+        }
+
+        Flush();
+        return result;
     }
 
     private List<Marker> DeadlinesFor(DateTime day)
@@ -261,7 +357,10 @@
         var visibleStart = start < dayStart ? dayStart : start;
         var visibleEnd = end > dayEnd ? dayEnd : end;
         var top = (visibleStart - dayStart).TotalHours * HourPx;
-        var height = Math.Max((visibleEnd - visibleStart).TotalHours * HourPx, 14);
+        // 14px cut the descenders off a single 0.72rem line, so a 15-minute
+        // task showed a clipped label. Raising the floor to MinBlockPx fits one
+        // line; tools/UiTest's overlap filter is pinned to this constant.
+        var height = Math.Max((visibleEnd - visibleStart).TotalHours * HourPx, MinBlockPx);
         return (top, height);
     }
 }

@@ -68,8 +68,9 @@ added later by restoring their target frameworks in
 - A **week-timeline calendar** with an auto-planner: unfinished tasks are placed
   into upcoming time slots (earliest deadline first, then priority, then the
   shorter estimate), deadlines draw as markers, a slot that cannot finish before
-  its deadline is flagged, completed tasks appear dimmed at the time they were
-  finished, and a now-line tracks the current minute
+  its deadline carries a **late** tag, completed tasks appear dimmed at the time
+  they were finished, and a now-line tracks the current minute. Entries that run
+  concurrently **split into side-by-side lanes** rather than covering each other
 - **Blocked time**: recurring weekly windows (sleep, work hours — windows may
   cross midnight) and one-off periods (appointments). The planner schedules
   around them, and they draw as striped shading on the calendar
@@ -193,6 +194,19 @@ The UI's tokens (light + dark), badges, tiles, panels and calendar blocks are
 documented as self-contained previews in `design-system/` and published to a
 [Claude Design](https://claude.ai/design) project ("Task Dashboard Design
 System") for visual browsing and iteration.
+
+The previews style themselves with the same `var(--*)` tokens the app uses, and
+each one carries a generated copy of the token declarations so it still renders
+standalone once published. Regenerate that copy from `app.css` after changing a
+token, then re-publish:
+
+```powershell
+./design-system/sync-tokens.ps1
+```
+
+Editing the previews' colours by hand is what let them reproduce the app's own
+hardcoded-blue bug in both themes, so the docs agreed with the bug instead of
+catching it.
 
 ## Development
 

@@ -225,11 +225,13 @@ if (mode == "blocked")
                         slots.map(e => e.innerText.replace(/\s+/g, ' ')).join(' | ') + ']';
                 }
                 const s = slot.getBoundingClientRect();
-                // Blocks under ~15px are midnight fragments inflated by the
-                // calendar's 14px readability clamp — their pixels overstate
-                // their real duration, so they can't prove a genuine overlap.
+                // Blocks at or under the clamp are midnight fragments inflated
+                // by the calendar's readability floor (MinBlockPx, currently
+                // 20px) — their pixels overstate their real duration, so they
+                // can't prove a genuine overlap. Keep this in step with
+                // CalendarPage.MinBlockPx.
                 const hit = [...slot.parentElement.querySelectorAll('.cal-blocked')]
-                    .filter(b => b.getBoundingClientRect().height > 15)
+                    .filter(b => b.getBoundingClientRect().height > 21)
                     .find(b => {
                         const r = b.getBoundingClientRect();
                         return r.top < s.bottom - 1 && r.bottom > s.top + 1;
