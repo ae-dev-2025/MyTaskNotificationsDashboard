@@ -1,0 +1,48 @@
+<!-- @dsCard group="Calendar" -->
+<!doctype html><html><head><meta charset="utf-8"><title>Calendar blocks</title>
+<style>
+body{font-family:'Helvetica Neue',Arial,sans-serif;margin:0;display:flex}
+.theme{flex:1;padding:1rem;display:flex;flex-direction:column;gap:.5rem}
+.light{background:#f6f7f8}.dark{background:#16191d}
+.blk{border-radius:.3rem;padding:.15rem .4rem;font-size:.72rem;line-height:1.3;max-width:15rem}
+.t{font-weight:700;margin-right:.3rem}
+.light .slot{background:#fff;border:1px solid #e5e5e5;color:#212529;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.dark .slot{background:#22262b;border:1px solid #333a41;color:#e9ecef;box-shadow:0 1px 2px rgba(0,0,0,.5)}
+.slot{border-left-width:4px !important;border-left-style:solid !important}
+.light .normal{border-left-color:#1b6ec2}.light .normal .t{color:#1b6ec2}
+.dark .normal{border-left-color:#4d9fe8}.dark .normal .t{color:#4d9fe8}
+.light .high{border-left-color:#e8871a}.light .high .t{color:#e8871a}
+.dark .high{border-left-color:#f0a04b}.dark .high .t{color:#f0a04b}
+.light .urgent{border-left-color:#dc3545}.light .urgent .t{color:#dc3545}
+.dark .urgent{border-left-color:#e4606d}.dark .urgent .t{color:#e4606d}
+.light .missed{outline:2px solid #b02a37;outline-offset:-2px}
+.dark .missed{outline:2px solid #e4606d;outline-offset:-2px}
+.light .started{background:#f0f7ff;border-left-color:#1b6ec2}
+.dark .started{background:#182430;border-left-color:#4d9fe8}
+.light .done{background:#e6f4ea;color:#1e7e34;border-left:4px solid #1e7e34;opacity:.85}
+.dark .done{background:#16321f;color:#6fce8b;border-left:4px solid #6fce8b;opacity:.85}
+.light .blocked{background:repeating-linear-gradient(45deg,#e9ecef 0,#e9ecef 6px,#f4f5f7 6px,#f4f5f7 12px);color:#868e96}
+.dark .blocked{background:repeating-linear-gradient(45deg,#2a3036 0,#2a3036 6px,#23282e 6px,#23282e 12px);color:#8a939c}
+.chip{display:inline-block;font-size:.62rem;font-weight:700;padding:0 .3rem;border-radius:.3rem}
+.light .chip{background:#fdf2f3;border:1px solid #f1aeb5;color:#b02a37}
+.dark .chip{background:#33191d;border:1px solid #6e2a31;color:#e4606d}
+</style></head><body>
+<div class="theme light">
+<div class="blk slot normal"><span class="t">09:00</span>Planned task</div>
+<div class="blk slot high"><span class="t">10:15</span>High priority</div>
+<div class="blk slot urgent missed"><span class="t">11:30</span>Will miss deadline</div>
+<div class="blk slot normal started"><span class="t">12:45</span>In progress</div>
+<div class="blk done"><span class="t">14:00</span>✓ Completed task</div>
+<div class="blk blocked"><span class="t">23:00</span>Sleep</div>
+<span class="chip">⚑ Report due</span>
+</div>
+<div class="theme dark">
+<div class="blk slot normal"><span class="t">09:00</span>Planned task</div>
+<div class="blk slot high"><span class="t">10:15</span>High priority</div>
+<div class="blk slot urgent missed"><span class="t">11:30</span>Will miss deadline</div>
+<div class="blk slot normal started"><span class="t">12:45</span>In progress</div>
+<div class="blk done"><span class="t">14:00</span>✓ Completed task</div>
+<div class="blk blocked"><span class="t">23:00</span>Sleep</div>
+<span class="chip">⚑ Report due</span>
+</div>
+</body></html>
