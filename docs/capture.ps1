@@ -131,6 +131,29 @@ try {
         $webviews = @(Get-Process msedgewebview2 -ErrorAction SilentlyContinue)
         Write-Host "diag: msedgewebview2 processes: $($webviews.Count)"
 
+        # The browser process command line is the ground truth for whether the
+        # debugging flag survived the trip through the environment options.
+        Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe'" -ErrorAction SilentlyContinue |
+            ForEach-Object {
+                $type = 'browser'
+                if ($_.CommandLine -match '--type=(\S+)') { $type = $Matches[1] }
+                if ($type -eq 'browser') {
+                    Write-Host "diag: webview browser cmdline: $($_.CommandLine)"
+                }
+            }
+
+        $mainWin = (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue).MainWindowHandle
+        Write-Host "diag: app MainWindowHandle: $mainWin"
+
+        $appPids = @($proc.Id) + @($webviews | ForEach-Object { $_.Id })
+        $listening = Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue |
+            Where-Object { $appPids -contains $_.OwningProcess }
+        if ($listening) {
+            $listening | ForEach-Object { Write-Host "diag: app/webview listening on $($_.LocalAddress):$($_.LocalPort)" }
+        } else {
+            Write-Host "diag: no listening TCP ports owned by the app or its webviews"
+        }
+
         $conn = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
         if ($conn) { Write-Host "diag: port $Port owned by pid $($conn[0].OwningProcess)" } else { Write-Host "diag: nothing listening on port $Port" }
 
