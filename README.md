@@ -8,6 +8,10 @@ built with **.NET MAUI Blazor Hybrid** (.NET 10), targeting **Windows** and
 > the native app. Notifications and the dashboard views described under
 > [Roadmap](#roadmap) are not implemented yet.
 
+**See it without running it:** [docs/tour.html](docs/tour.html) is a
+screen-by-screen tour with every screenshot in both themes
+([docs/README.md](docs/README.md) covers regenerating it).
+
 ## ⚠️ Disclaimer
 
 **This is not production software.** It is a personal project in the earliest
