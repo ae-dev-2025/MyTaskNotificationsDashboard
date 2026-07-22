@@ -14,18 +14,22 @@ Demo assets for showing the app without running it.
 
 ## Recreating the demo
 
-**CI does this on every pull request.** The `demo` job in
-`.github/workflows/release.yml` runs the freshly built app, recaptures all
-ten screenshots, rebuilds the tour, and commits the result back to the PR
-branch — so `docs/` can never drift from the code under review. The
-single-file `tour.embed.html` is attached to each run as the
-`TaskDashboard-demo-tour` artifact.
-
-To run the same thing locally (after building the Windows TFM):
+**Recreate the demo locally on every PR** (after building the Windows TFM):
 
 ```powershell
 .\docs\capture.ps1          # add -Embed for the single-file variant
 ```
+
+Commit the refreshed `screenshots/` and `tour.html` with the PR, the same
+way the UI test suites run locally before a PR rather than in CI.
+
+This is deliberate. A CI job was tried and reverted: hosted runners can
+build and even launch the app (self-contained publish), but they run
+**elevated**, and the WebView2 debug port never opens there — the loader
+drops `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` for elevated processes, and
+even forwarding the arguments through `CoreWebView2EnvironmentOptions`
+left the port closed. Capture follows the same rule as the tests: CI
+builds, a local machine drives the real app.
 
 The script backs up your real `tasks.json`, seeds clock-relative demo data —
 an in-progress task anchoring the now-line, completions in the hours behind
