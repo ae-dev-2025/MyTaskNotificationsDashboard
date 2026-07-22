@@ -1,3 +1,82 @@
+/* Design tokens. Light values on :root; Bootstrap 5.3's data-bs-theme
+   attribute (set by taskDashboard.applyTheme in index.html) switches both
+   Bootstrap's own components and these overrides. */
+:root {
+    --surface: #ffffff;
+    --text: #212529;
+    --text-muted: #6c757d;
+    --text-faint: #868e96;
+    --label: #495057;
+    --border: #dee2e6;
+    --border-subtle: #e5e5e5;
+    --hairline: #f1f3f5;
+    --accent: #1b6ec2;
+    --accent-soft: #eaf3fc;
+    --today-tint: #f7fbff;
+    --started-tint: #f0f7ff;
+    --inprogress-bg: #cfe2ff;
+    --inprogress-fg: #084298;
+    --p-low-bg: #e9ecef;
+    --p-low-fg: #495057;
+    --p-normal-bg: #d5e5f7;
+    --p-normal-fg: #1c4f82;
+    --p-high-bg: #fde5cc;
+    --p-high-fg: #8a4b08;
+    --p-urgent-bg: #f8d7da;
+    --p-urgent-fg: #842029;
+    --danger: #b02a37;
+    --danger-soft-border: #f1aeb5;
+    --danger-soft-bg: #fdf2f3;
+    --danger-fg: #842029;
+    --done-bg: #e6f4ea;
+    --done-fg: #1e7e34;
+    --blocked-a: #e9ecef;
+    --blocked-b: #f4f5f7;
+    --blocked-fg: #868e96;
+    --now-line: #d6336c;
+    --backdrop: rgba(15, 23, 42, 0.45);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+    --panel-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+[data-bs-theme=dark] {
+    --surface: #22262b;
+    --text: #e9ecef;
+    --text-muted: #a2acb5;
+    --text-faint: #8a939c;
+    --label: #c4ccd3;
+    --border: #3a4148;
+    --border-subtle: #333a41;
+    --hairline: #2a3036;
+    --accent: #4d9fe8;
+    --accent-soft: #16283a;
+    --today-tint: #1a2027;
+    --started-tint: #182430;
+    --inprogress-bg: #143a66;
+    --inprogress-fg: #9ec5f2;
+    --p-low-bg: #343a40;
+    --p-low-fg: #ced4da;
+    --p-normal-bg: #163a5e;
+    --p-normal-fg: #9cc7ef;
+    --p-high-bg: #4c3010;
+    --p-high-fg: #f3c088;
+    --p-urgent-bg: #4a1d22;
+    --p-urgent-fg: #f1a6ad;
+    --danger: #e4606d;
+    --danger-soft-border: #6e2a31;
+    --danger-soft-bg: #33191d;
+    --danger-fg: #f1a6ad;
+    --done-bg: #16321f;
+    --done-fg: #6fce8b;
+    --blocked-a: #2a3036;
+    --blocked-b: #23282e;
+    --blocked-fg: #8a939c;
+    --now-line: #ef5c8f;
+    --backdrop: rgba(0, 0, 0, 0.6);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --panel-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }

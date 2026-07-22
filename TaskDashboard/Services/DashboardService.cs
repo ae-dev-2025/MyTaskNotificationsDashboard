@@ -254,6 +254,14 @@ public class DashboardService
         await SaveAsync();
     }
 
+    public string Theme => data.Theme is "light" or "dark" ? data.Theme : "system";
+
+    public async Task SetThemeAsync(string theme)
+    {
+        data.Theme = theme is "light" or "dark" ? theme : "system";
+        await SaveAsync();
+    }
+
     public async Task DeleteAsync(Guid id)
     {
         if (data.Tasks.RemoveAll(i => i.Id == id) > 0)

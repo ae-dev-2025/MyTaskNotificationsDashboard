@@ -28,5 +28,37 @@
                 <span class="bi bi-slash-circle-nav-menu" aria-hidden="true"></span> Blocked time
             </NavLink>
         </div>
+        <div class="nav-item px-3">
+            <button type="button" class="nav-link theme-toggle" @onclick="CycleThemeAsync">
+                <span class="bi bi-circle-half-nav-menu" aria-hidden="true"></span> Theme: @ThemeLabel
+            </button>
+        </div>
     </nav>
 </div>
+
+@inject DashboardService Dashboard
+@inject IJSRuntime JS
+
+@code {
+    protected override Task OnInitializedAsync() => Dashboard.LoadAsync();
+
+    private string ThemeLabel => Dashboard.Theme switch
+    {
+        "light" => "Light",
+        "dark" => "Dark",
+        _ => "System",
+    };
+
+    private async Task CycleThemeAsync()
+    {
+        var next = Dashboard.Theme switch
+        {
+            "system" => "light",
+            "light" => "dark",
+            _ => "system",
+        };
+
+        await Dashboard.SetThemeAsync(next);
+        await JS.InvokeVoidAsync("taskDashboard.applyTheme", next);
+    }
+}

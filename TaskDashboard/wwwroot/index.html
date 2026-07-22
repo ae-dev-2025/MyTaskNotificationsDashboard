@@ -30,6 +30,26 @@
                 if (element) {
                     element.scrollTop = top;
                 }
+            },
+
+            // Applies "system" | "light" | "dark". Bootstrap 5.3 switches on
+            // the data-bs-theme attribute; "system" resolves via the OS
+            // preference and follows it live.
+            applyTheme: function (pref) {
+                var media = window.matchMedia('(prefers-color-scheme: dark)');
+                var apply = function () {
+                    var effective = pref === 'system' ? (media.matches ? 'dark' : 'light') : pref;
+                    document.documentElement.setAttribute('data-bs-theme', effective);
+                };
+                if (window.taskDashboard._themeListener) {
+                    media.removeEventListener('change', window.taskDashboard._themeListener);
+                    window.taskDashboard._themeListener = null;
+                }
+                if (pref === 'system') {
+                    window.taskDashboard._themeListener = apply;
+                    media.addEventListener('change', apply);
+                }
+                apply();
             }
         };
     </script>

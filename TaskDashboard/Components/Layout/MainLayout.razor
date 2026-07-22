@@ -1,4 +1,6 @@
 ﻿@inherits LayoutComponentBase
+@inject DashboardService Dashboard
+@inject IJSRuntime JS
 
 <div class="page">
     <div class="sidebar">
@@ -11,3 +13,15 @@
         </article>
     </main>
 </div>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Apply the persisted theme preference as soon as the app opens.
+            await Dashboard.LoadAsync();
+            await JS.InvokeVoidAsync("taskDashboard.applyTheme", Dashboard.Theme);
+        }
+    }
+}
