@@ -12,34 +12,28 @@ Demo assets for showing the app without running it.
   (~740 KB, git-ignored) for mailing or uploading somewhere that can't host
   the folder.
 
-## Recapturing the screenshots
+## Recreating the demo
 
-The captures come from the running app over CDP, seeded with demo data —
-an in-progress task, a queue across all four priorities, completions earlier
-the same afternoon, and recurring Sleep/Lunch blocks — so that the calendar
-shows history, the now-line, and the forward plan in a single viewport.
+**CI does this on every pull request.** The `demo` job in
+`.github/workflows/release.yml` runs the freshly built app, recaptures all
+ten screenshots, rebuilds the tour, and commits the result back to the PR
+branch — so `docs/` can never drift from the code under review. The
+single-file `tour.embed.html` is attached to each run as the
+`TaskDashboard-demo-tour` artifact.
 
-1. **Back up your data file** (the demo seed replaces it):
-   `%LOCALAPPDATA%\User Name\com.aedev2025.taskdashboard\Data\tasks.json`.
-2. Seed demo data into that file. Keep completions in the early afternoon
-   and the in-progress task "now", so one calendar frame tells the story.
-3. Launch with remote debugging:
+To run the same thing locally (after building the Windows TFM):
 
-   ```powershell
-   $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-port=9333'
-   Start-Process TaskDashboard\bin\Debug\net10.0-windows10.0.19041.0\win-x64\TaskDashboard.exe
-   ```
+```powershell
+.\docs\capture.ps1          # add -Embed for the single-file variant
+```
 
-4. For each theme (`taskDashboard.applyTheme('light'|'dark')` via
-   `Runtime.evaluate`), visit each nav page and `Page.captureScreenshot`.
-   On the calendar, scroll to `12 * 48px` first so the afternoon is framed.
-   The edit-modal shot is the Tasks page with Edit clicked on a queued task.
-5. Name the files `<n>-<page>-<theme>.png` to match `SCREENS` in
-   `build-tour.py`, drop them in `screenshots/`, and run the script.
-6. Restore your backed-up `tasks.json` **after closing the app** — a live
-   instance writes the demo data back over your restore on exit.
+The script backs up your real `tasks.json`, seeds clock-relative demo data —
+an in-progress task anchoring the now-line, completions in the hours behind
+it, a queue across all four priorities planning out ahead, recurring
+Sleep/Lunch blocks — drives the app over CDP via `tools/UiTest`'s `capture`
+mode, rebuilds `tour.html`, and restores your data after the app has exited
+(restoring earlier would be undone by the app's shutdown write).
 
-Capturing over CDP rather than a window grab keeps the frames pixel-identical
-in size and free of window chrome. Note the WebSocket handshake needs
-origin suppression (`suppress_origin=True` in Python's websocket-client, or
-launch with `--remote-allow-origins=*`).
+Everything is relative to *now*, per the fixture rule in `CLAUDE.md`, so a
+capture at any hour of day keeps history, the now-line and the forward plan
+inside the calendar frame.

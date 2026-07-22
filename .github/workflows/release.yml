@@ -101,3 +101,56 @@ jobs:
             --latest
         env:
           GH_TOKEN: ${{ github.token }}
+
+  # Every PR recreates the demo in docs/ from the freshly built app, so the
+  # screenshots and tour can never drift from the code under review. The
+  # refreshed files are committed back to the PR branch (a GITHUB_TOKEN push
+  # does not retrigger workflows, so this cannot loop), and the single-file
+  # tour is attached to the run for anyone who wants to demo without checkout.
+  demo:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: TaskDashboard-windows-x64
+          path: ${{ runner.temp }}
+
+      - name: Unpack the built app
+        shell: pwsh
+        run: |
+          Expand-Archive "$env:RUNNER_TEMP\TaskDashboard-windows-x64.zip" -DestinationPath "$env:RUNNER_TEMP\app"
+          if (-not (Test-Path "$env:RUNNER_TEMP\app\TaskDashboard.exe")) { throw "TaskDashboard.exe not found in the zip" }
+
+      - name: Recreate the demo
+        shell: pwsh
+        run: .\docs\capture.ps1 -ExePath "$env:RUNNER_TEMP\app\TaskDashboard.exe" -Embed
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TaskDashboard-demo-tour
+          path: docs/tour.embed.html
+
+      - name: Commit the refreshed demo to the PR branch
+        shell: pwsh
+        run: |
+          git add docs
+          if (-not (git status --porcelain docs)) {
+            Write-Output "demo unchanged, nothing to commit"
+            exit 0
+          }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Recreate the demo from this PR's build [skip ci]"
+          git push
