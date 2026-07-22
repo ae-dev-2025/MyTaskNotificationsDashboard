@@ -21,6 +21,23 @@
         <span class="tile-value">@DoneTodayCount</span>
         <span class="tile-label">done today</span>
     </div>
+    @{ var insight = Estimation.Compute(Data.Items); }
+    @if (insight.Factor is { } factor)
+    {
+        <div class="tile tile-accuracy @(factor >= 1.5 ? "tile-alert" : null)"
+             title="@($"Your tasks take about {factor:0.0}× their estimate, measured from {insight.SampleCount} completed tasks")">
+            <span class="tile-value">×@factor.ToString("0.0")</span>
+            <span class="tile-label">estimate accuracy</span>
+        </div>
+    }
+    else
+    {
+        <div class="tile tile-accuracy"
+             title="Complete tasks with a Start, a Done, and an estimate to calibrate your estimating">
+            <span class="tile-value">@insight.SampleCount/@Estimation.MinimumSamples</span>
+            <span class="tile-label">calibrating estimates</span>
+        </div>
+    }
 </div>
 
 <div class="panels">
