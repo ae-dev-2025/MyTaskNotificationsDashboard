@@ -1,32 +1,126 @@
 <!-- @dsCard group="Panels" -->
 <!doctype html><html><head><meta charset="utf-8"><title>Now panel</title>
+<style id="ds-tokens">
+:root {
+    --surface: #ffffff;
+    /* App chrome (sidebar, top bar) sits a step off --surface so the shell
+       reads as frame rather than content. */
+    --chrome: #f8f9fa;
+    --text: #212529;
+    --text-muted: #6c757d;
+    --text-faint: #868e96;
+    --label: #495057;
+    --border: #dee2e6;
+    --border-subtle: #e5e5e5;
+    --hairline: #f1f3f5;
+    --accent: #1b6ec2;
+    --accent-strong: #1861ac;
+    --accent-soft: #eaf3fc;
+    /* Text on an --accent fill. Dark mode lightens --accent, so white text
+       would drop to ~2.8:1 there; ink is the readable pairing. */
+    --on-accent: #ffffff;
+    --today-tint: #f7fbff;
+    --started-tint: #f0f7ff;
+    --inprogress-bg: #cfe2ff;
+    --inprogress-fg: #084298;
+    --p-low-bg: #e9ecef;
+    --p-low-fg: #495057;
+    --p-normal-bg: #d5e5f7;
+    --p-normal-fg: #1c4f82;
+    --p-high-bg: #fde5cc;
+    --p-high-fg: #8a4b08;
+    --p-urgent-bg: #f8d7da;
+    --p-urgent-fg: #842029;
+    --danger: #b02a37;
+    --danger-soft-border: #f1aeb5;
+    --danger-soft-bg: #fdf2f3;
+    --danger-fg: #842029;
+    --done-bg: #e6f4ea;
+    --done-fg: #1e7e34;
+    --blocked-a: #e9ecef;
+    --blocked-b: #f4f5f7;
+    --blocked-fg: #868e96;
+    /* Violet, deliberately outside the priority ramp (grey/blue/orange/red)
+       so the current-time line cannot be read as an urgent-task accent. */
+    --now-line: #7048e8;
+    --on-now-line: #ffffff;
+    --backdrop: rgba(15, 23, 42, 0.45);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+    --panel-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+    --weekend-tint: #fafbfc;
+    --p-low-accent: #868e96;
+    --p-normal-accent: #1b6ec2;
+    --p-high-accent: #e8871a;
+    --p-urgent-accent: #dc3545;
+}
+[data-bs-theme=dark] {
+    --surface: #22262b;
+    --chrome: #1c2024;
+    --text: #e9ecef;
+    --text-muted: #a2acb5;
+    --text-faint: #8a939c;
+    --label: #c4ccd3;
+    --border: #3a4148;
+    --border-subtle: #333a41;
+    --hairline: #2a3036;
+    --accent: #4d9fe8;
+    --accent-strong: #7ab8ef;
+    --accent-soft: #16283a;
+    --on-accent: #0b1c2c;
+    --today-tint: #1a2027;
+    --started-tint: #182430;
+    --inprogress-bg: #143a66;
+    --inprogress-fg: #9ec5f2;
+    --p-low-bg: #343a40;
+    --p-low-fg: #ced4da;
+    --p-normal-bg: #163a5e;
+    --p-normal-fg: #9cc7ef;
+    --p-high-bg: #4c3010;
+    --p-high-fg: #f3c088;
+    --p-urgent-bg: #4a1d22;
+    --p-urgent-fg: #f1a6ad;
+    --danger: #e4606d;
+    --danger-soft-border: #6e2a31;
+    --danger-soft-bg: #33191d;
+    --danger-fg: #f1a6ad;
+    --done-bg: #16321f;
+    --done-fg: #6fce8b;
+    --blocked-a: #2a3036;
+    --blocked-b: #23282e;
+    --blocked-fg: #8a939c;
+    --now-line: #9775fa;
+    /* The dark now-line is light enough that white sat at ~3.6:1 on it. */
+    --on-now-line: #1a1030;
+    --backdrop: rgba(0, 0, 0, 0.6);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --panel-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+    --weekend-tint: #1e2328;
+    --p-low-accent: #9aa4ad;
+    --p-normal-accent: #4d9fe8;
+    --p-high-accent: #f0a04b;
+    --p-urgent-accent: #e4606d;
+}
+</style><!-- /ds-tokens -->
 <style>
 body{font-family:'Helvetica Neue',Arial,sans-serif;margin:0;display:flex}
-.theme{flex:1;padding:1rem}
-.light{background:#f6f7f8}.dark{background:#16191d}
-.panel{border-radius:.5rem;padding:1rem 1.1rem;border-left-width:4px;border-left-style:solid}
-.light .panel{background:#fff;border:1px solid #dee2e6;border-left:4px solid #1b6ec2}
-.dark .panel{background:#22262b;border:1px solid #3a4148;border-left:4px solid #4d9fe8}
-h2{font-size:.85rem;text-transform:uppercase;letter-spacing:.06em;margin:0 0 .75rem}
-.light h2{color:#868e96}.dark h2{color:#8a939c}
+.theme{flex:1;padding:1rem;background:var(--chrome)}
+.panel{border-radius:.5rem;padding:1rem 1.1rem;background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--accent)}
+h2{font-size:.85rem;text-transform:uppercase;letter-spacing:.06em;margin:0 0 .75rem;color:var(--blocked-fg)}
 .row{display:flex;flex-wrap:wrap;align-items:baseline;gap:.5rem}
-.badge{padding:.35em .65em;font-size:.7em;font-weight:600;border-radius:.375rem}
-.light .badge{background:#fde5cc;color:#8a4b08}.dark .badge{background:#4c3010;color:#f3c088}
-.title{font-size:1.15rem;font-weight:600}
-.light .title{color:#212529}.dark .title{color:#e9ecef}
-.time{font-size:.9rem}.light .time{color:#6c757d}.dark .time{color:#a2acb5}
+.badge{padding:.35em .65em;font-size:.7em;font-weight:600;border-radius:.375rem;background:var(--p-high-bg);color:var(--p-high-fg)}
+.title{font-size:1.15rem;font-weight:600;color:var(--text)}
+.time{font-size:.9rem;color:var(--text-muted)}
 .actions{display:flex;gap:.5rem;margin-top:.75rem}
 .btn{font-size:.8rem;padding:.25rem .6rem;border-radius:.375rem;border:1px solid transparent;font-weight:500}
-.primary{background:#1b6ec2;color:#fff}
-.light .ghost{background:transparent;border-color:#6c757d;color:#6c757d}
-.dark .ghost{background:transparent;border-color:#a2acb5;color:#a2acb5}
+.primary{background:var(--accent);color:var(--on-accent)}
+.ghost{background:transparent;border-color:var(--text-muted);color:var(--text-muted)}
 </style></head><body>
-<div class="theme light"><div class="panel"><h2>Now</h2>
+<div class="theme"><div class="panel"><h2>Now</h2>
 <div class="row"><span class="badge">High</span><span class="title">Write the report</span>
 <span class="time">started 09:15 · 23m in · ~37m left</span></div>
 <div class="actions"><button class="btn primary">Done</button><button class="btn ghost">Stop</button></div>
 </div></div>
-<div class="theme dark"><div class="panel"><h2>Now</h2>
+<div class="theme" data-bs-theme="dark"><div class="panel"><h2>Now</h2>
 <div class="row"><span class="badge">High</span><span class="title">Write the report</span>
 <span class="time">started 09:15 · 23m in · ~37m left</span></div>
 <div class="actions"><button class="btn primary">Done</button><button class="btn ghost">Stop</button></div>

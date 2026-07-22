@@ -1,4 +1,4 @@
-.modal-backdrop-area {
+﻿.modal-backdrop-area {
     position: fixed;
     inset: 0;
     background: var(--backdrop);
@@ -81,5 +81,5 @@
 .modal-panel ::deep .validation-errors {
     margin: 0.75rem 0 0;
     padding-left: 1.1rem;
-    color: #e50000;
+    color: var(--danger);
 }
