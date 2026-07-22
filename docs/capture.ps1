@@ -119,7 +119,27 @@ try {
         } catch { }
     }
     if (-not $ready) {
-        throw "App is running (pid $($proc.Id)) but never exposed CDP on port $Port -- check WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS reached the process and the WebView2 runtime is present."
+        # Say which layer is dead before giving up: runtime, browser process,
+        # port, or a crash the process object cannot see.
+        $wvKeys = @(
+            'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
+            'HKLM:\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+        )
+        $wv = $wvKeys | ForEach-Object { Get-ItemProperty $_ -ErrorAction SilentlyContinue } | Select-Object -First 1
+        if ($wv) { Write-Host "diag: WebView2 runtime $($wv.pv)" } else { Write-Host "diag: WebView2 runtime NOT INSTALLED" }
+
+        $webviews = @(Get-Process msedgewebview2 -ErrorAction SilentlyContinue)
+        Write-Host "diag: msedgewebview2 processes: $($webviews.Count)"
+
+        $conn = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
+        if ($conn) { Write-Host "diag: port $Port owned by pid $($conn[0].OwningProcess)" } else { Write-Host "diag: nothing listening on port $Port" }
+
+        try {
+            Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Level = 2; StartTime = (Get-Date).AddMinutes(-10) } -MaxEvents 5 -ErrorAction Stop |
+                ForEach-Object { Write-Host ("diag: event [{0}] {1}" -f $_.ProviderName, ($_.Message -split "`n")[0]) }
+        } catch { Write-Host "diag: no recent Application error events" }
+
+        throw "App is running (pid $($proc.Id)) but never exposed CDP on port $Port."
     }
     Write-Host "app is up, CDP reachable"
 

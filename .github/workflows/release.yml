@@ -138,6 +138,25 @@ jobs:
           Expand-Archive "$env:RUNNER_TEMP\TaskDashboard-windows-x64.zip" -DestinationPath "$env:RUNNER_TEMP\app"
           if (-not (Test-Path "$env:RUNNER_TEMP\app\TaskDashboard.exe")) { throw "TaskDashboard.exe not found in the zip" }
 
+      # Hosted images ship Edge the browser, but not necessarily the WebView2
+      # runtime the BlazorWebView embeds -- without it the app runs happily
+      # with a dead web view and CDP never appears.
+      - name: Ensure the WebView2 runtime is installed
+        shell: pwsh
+        run: |
+          $keys = @(
+            'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
+            'HKLM:\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+          )
+          $wv = $keys | ForEach-Object { Get-ItemProperty $_ -ErrorAction SilentlyContinue } | Select-Object -First 1
+          if ($wv) { Write-Output "WebView2 runtime present: $($wv.pv)"; exit 0 }
+          Write-Output "WebView2 runtime missing; installing the Evergreen runtime"
+          Invoke-WebRequest 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile "$env:RUNNER_TEMP\wv2setup.exe"
+          Start-Process "$env:RUNNER_TEMP\wv2setup.exe" -ArgumentList '/silent', '/install' -Wait
+          $wv = $keys | ForEach-Object { Get-ItemProperty $_ -ErrorAction SilentlyContinue } | Select-Object -First 1
+          if (-not $wv) { throw 'WebView2 runtime install failed' }
+          Write-Output "WebView2 runtime installed: $($wv.pv)"
+
       - name: Recreate the demo
         shell: pwsh
         run: .\docs\capture.ps1 -ExePath "$env:RUNNER_TEMP\app\TaskDashboard.exe" -Embed
