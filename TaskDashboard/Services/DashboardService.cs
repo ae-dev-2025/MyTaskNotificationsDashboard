@@ -19,6 +19,14 @@ public class DashboardService
 
     public IReadOnlyList<BlockedPeriod> BlockedPeriods => data.BlockedPeriods;
 
+    public TimeSpan BreakBetweenTasks => TimeSpan.FromMinutes(Math.Clamp(data.BreakMinutes, 0, 120));
+
+    public int BreakMinutes => Math.Clamp(data.BreakMinutes, 0, 120);
+
+    /// <summary>Raised after every successful save, so open pages can refresh
+    /// their plan immediately no matter where a change originated.</summary>
+    public event Action? Changed;
+
     public async Task LoadAsync()
     {
         if (loaded)
@@ -92,7 +100,8 @@ public class DashboardService
         string title,
         DateTimeOffset? deadline,
         TaskPriority priority,
-        TimeSpan? estimatedTime)
+        TimeSpan? estimatedTime,
+        DateTimeOffset? notBefore = null)
     {
         title = title.Trim();
         if (title.Length == 0)
@@ -104,6 +113,7 @@ public class DashboardService
         {
             Title = title,
             Deadline = deadline,
+            NotBefore = notBefore,
             Priority = priority,
             EstimatedTime = estimatedTime,
         });
@@ -172,7 +182,8 @@ public class DashboardService
         string title,
         DateTimeOffset? deadline,
         TaskPriority priority,
-        TimeSpan? estimatedTime)
+        TimeSpan? estimatedTime,
+        DateTimeOffset? notBefore = null)
     {
         title = title.Trim();
         var item = data.Tasks.FirstOrDefault(i => i.Id == id);
@@ -183,9 +194,63 @@ public class DashboardService
 
         item.Title = title;
         item.Deadline = deadline;
+        item.NotBefore = notBefore;
         item.Priority = priority;
         item.EstimatedTime = estimatedTime;
 
+        await SaveAsync();
+    }
+
+    /// <summary>Replaces a task with 2–4 independent part-tasks. The estimate
+    /// is divided (minute-rounded, remainder on the first part); deadline,
+    /// priority and not-before carry over. The planner never splits on its own
+    /// — this is always a user action.</summary>
+    public async Task SplitAsync(Guid id, int parts)
+    {
+        var index = data.Tasks.FindIndex(i => i.Id == id);
+        if (index < 0 || parts is < 2 or > 4)
+        {
+            return;
+        }
+
+        var source = data.Tasks[index];
+        if (source.IsDone || source.IsInProgress)
+        {
+            return;
+        }
+
+        var minutesTotal = source.EstimatedTime is { } estimate
+            ? (int)Math.Round(estimate.TotalMinutes)
+            : (int?)null;
+        var baseMinutes = minutesTotal / parts;
+        var remainder = minutesTotal % parts;
+
+        var replacements = new List<TodoItem>(parts);
+        for (var i = 0; i < parts; i++)
+        {
+            var minutes = baseMinutes is { } m ? m + (i == 0 ? remainder ?? 0 : 0) : (int?)null;
+            replacements.Add(new TodoItem
+            {
+                Title = $"{source.Title} ({i + 1}/{parts})",
+                Deadline = source.Deadline,
+                NotBefore = source.NotBefore,
+                Priority = source.Priority,
+                EstimatedTime = minutes is { } total ? TimeSpan.FromMinutes(Math.Max(total, 1)) : null,
+                // Tick offsets keep part order stable under the planner's
+                // CreatedAt tie-break.
+                CreatedAt = DateTimeOffset.UtcNow.AddTicks(i),
+            });
+        }
+
+        data.Tasks.RemoveAt(index);
+        data.Tasks.InsertRange(index, replacements);
+        await SaveAsync();
+    }
+
+    /// <summary>Sets the mandatory planner break between tasks (0–120 minutes).</summary>
+    public async Task SetBreakMinutesAsync(int minutes)
+    {
+        data.BreakMinutes = Math.Clamp(minutes, 0, 120);
         await SaveAsync();
     }
 
@@ -244,5 +309,7 @@ public class DashboardService
         var tempPath = StoragePath + ".tmp";
         await File.WriteAllTextAsync(tempPath, json);
         File.Move(tempPath, StoragePath, overwrite: true);
+
+        Changed?.Invoke();
     }
 }

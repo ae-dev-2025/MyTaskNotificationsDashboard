@@ -40,6 +40,25 @@
     }
 </div>
 
+@if (MissedCount > 0 || UnplannedCount > 0)
+{
+    <div class="capacity-banner" role="alert">
+        ⚠️
+        @if (MissedCount > 0)
+        {
+            <span>@MissedCount @(MissedCount == 1 ? "task" : "tasks") can't finish before the deadline</span>
+        }
+        @if (MissedCount > 0 && UnplannedCount > 0)
+        {
+            <span class="capacity-sep">·</span>
+        }
+        @if (UnplannedCount > 0)
+        {
+            <span>@UnplannedCount didn't fit the next 14 days</span>
+        }
+    </div>
+}
+
 <div class="panels">
     <section class="panel panel-now" aria-label="Now">
         <h2>Now</h2>
@@ -150,16 +169,34 @@
     protected override async Task OnInitializedAsync()
     {
         await Data.LoadAsync();
+        Data.Changed += OnDataChanged;
         _ = TickAsync();
     }
 
     protected override void OnParametersSet() => Recompute();
 
+    private void OnDataChanged() => _ = InvokeAsync(() =>
+    {
+        Recompute();
+        StateHasChanged();
+    });
+
     private void Recompute()
     {
         var now = DateTimeOffset.Now;
         var busy = BlockedTime.Expand(Data.BlockedPeriods, now, now + PlanHorizon);
-        plan = Planner.Plan(Data.Items, busy, now, PlanHorizon);
+        plan = Planner.Plan(Data.Items, busy, now, PlanHorizon, Data.BreakBetweenTasks);
+    }
+
+    private int MissedCount => plan.Count(s => s.MissesDeadline);
+
+    private int UnplannedCount
+    {
+        get
+        {
+            var planned = plan.Select(s => s.TaskId).ToHashSet();
+            return Data.Items.Count(i => !i.IsDone && !planned.Contains(i.Id));
+        }
     }
 
     private List<TodoItem> Remaining => [.. Data.Items.Where(i => !i.IsDone)];
@@ -243,7 +280,11 @@
         }
     }
 
-    public void Dispose() => clock.Dispose();
+    public void Dispose()
+    {
+        Data.Changed -= OnDataChanged;
+        clock.Dispose();
+    }
 
     private static string FormatDuration(TimeSpan duration)
     {

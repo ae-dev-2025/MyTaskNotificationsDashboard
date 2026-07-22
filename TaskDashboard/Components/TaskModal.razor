@@ -23,6 +23,23 @@
                     Cancel
                 </button>
             </div>
+
+            @if (ShowSplit)
+            {
+                <div class="split-row">
+                    <label for="split-parts">Split into</label>
+                    <select id="split-parts" class="form-select form-select-sm split-select" @bind="splitParts">
+                        <option value="2">2 parts</option>
+                        <option value="3">3 parts</option>
+                        <option value="4">4 parts</option>
+                    </select>
+                    <button type="button" class="btn btn-sm btn-outline-primary btn-split"
+                            @onclick="() => OnSplit.InvokeAsync(splitParts)">
+                        Split task
+                    </button>
+                </div>
+                <small class="split-hint">Divides the estimate into independent part-tasks the planner schedules separately.</small>
+            }
         </EditForm>
     </div>
 </div>
@@ -35,10 +52,18 @@
     public TaskForm Form { get; set; } = default!;
 
     [Parameter]
+    public bool ShowSplit { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnSplit { get; set; }
+
+    [Parameter]
     public EventCallback OnSave { get; set; }
 
     [Parameter]
     public EventCallback OnCancel { get; set; }
+
+    private int splitParts = 2;
 
     private TaskFields? fields;
 

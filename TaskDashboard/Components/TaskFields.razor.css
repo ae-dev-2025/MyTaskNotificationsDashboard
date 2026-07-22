@@ -15,3 +15,7 @@
     font-weight: 600;
     color: #495057;
 }
+
+.task-fields .field-hint {
+    color: #868e96;
+}

@@ -84,8 +84,11 @@
     {
         weekStart = StartOfWeek(Today);
         await Todos.LoadAsync();
+        Todos.Changed += OnDataChanged;
         _ = TickAsync();
     }
+
+    private void OnDataChanged() => _ = InvokeAsync(StateHasChanged);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -111,7 +114,11 @@
         }
     }
 
-    public void Dispose() => clock.Dispose();
+    public void Dispose()
+    {
+        Todos.Changed -= OnDataChanged;
+        clock.Dispose();
+    }
 
     private static DateTime StartOfWeek(DateTime date)
     {
@@ -141,7 +148,7 @@
 
         // Planned slots for unfinished work, routed around blocked time.
         var busy = BlockedTime.Expand(Todos.BlockedPeriods, DateTimeOffset.Now, DateTimeOffset.Now + PlanHorizon);
-        var plan = Planner.Plan(Todos.Items, busy, DateTimeOffset.Now, PlanHorizon);
+        var plan = Planner.Plan(Todos.Items, busy, DateTimeOffset.Now, PlanHorizon, Todos.BreakBetweenTasks);
         foreach (var slot in plan)
         {
             if (slot.End <= dayStart || slot.Start >= dayEnd)
