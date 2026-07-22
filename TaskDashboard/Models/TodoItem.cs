@@ -26,6 +26,10 @@ public class TodoItem
     /// <summary>When the task is due. Null means no deadline was set.</summary>
     public DateTimeOffset? Deadline { get; set; }
 
+    /// <summary>Earliest moment the planner may schedule this task. Null means
+    /// any time.</summary>
+    public DateTimeOffset? NotBefore { get; set; }
+
     public TaskPriority Priority { get; set; } = TaskPriority.Normal;
 
     /// <summary>Estimated effort to complete. Null means not estimated.</summary>

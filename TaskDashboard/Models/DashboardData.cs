@@ -12,4 +12,8 @@ public class DashboardData
     public List<TodoItem> Tasks { get; set; } = [];
 
     public List<BlockedPeriod> BlockedPeriods { get; set; } = [];
+
+    /// <summary>Mandatory gap the planner leaves between tasks, in minutes.
+    /// Older files lack the property and fall back to the default.</summary>
+    public int BreakMinutes { get; set; } = 15;
 }

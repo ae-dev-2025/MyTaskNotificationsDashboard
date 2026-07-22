@@ -95,7 +95,8 @@ public static class Planner
         IEnumerable<TodoItem> tasks,
         IReadOnlyList<TimeRange> busy,
         DateTimeOffset from,
-        TimeSpan horizon)
+        TimeSpan horizon,
+        TimeSpan breakBetween)
     {
         var limit = from + horizon;
         var blocked = MergeOverlapping(busy, from, limit);
@@ -119,7 +120,7 @@ public static class Planner
             slots.Add(new PlannedSlot(
                 task.Id, cursor, end,
                 task.Deadline is { } due && end > due));
-            cursor = end;
+            cursor = end + breakBetween;
         }
 
         var ordered = pending
@@ -132,7 +133,12 @@ public static class Planner
         foreach (var task in ordered)
         {
             var duration = task.EstimatedTime ?? DefaultEstimate;
-            var start = NextFreeStart(cursor, duration, blocked);
+
+            // Honor the task's earliest allowed start; the shared cursor is
+            // deliberately NOT rewound for later tasks (plan stability over
+            // gap-filling — the planner never reorders around a not-before).
+            var earliest = task.NotBefore is { } notBefore && notBefore > cursor ? notBefore : cursor;
+            var start = NextFreeStart(earliest, duration, blocked);
 
             if (start + duration > limit)
             {
@@ -146,7 +152,7 @@ public static class Planner
                 end,
                 task.Deadline is { } deadline && end > deadline));
 
-            cursor = end;
+            cursor = end + breakBetween;
         }
 
         return slots;

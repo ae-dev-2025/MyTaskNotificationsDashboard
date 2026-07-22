@@ -73,6 +73,13 @@ added later by restoring their target frameworks in
 - **Blocked time**: recurring weekly windows (sleep, work hours — windows may
   cross midnight) and one-off periods (appointments). The planner schedules
   around them, and they draw as striped shading on the calendar
+- **Planner realism**: a mandatory, editable **break between tasks** (default
+  15 min, set on the Blocked time page); tasks can carry a **not-before**
+  earliest start the planner honors; a **Split** action in the edit dialog
+  divides a task into 2–4 independent part-tasks (the planner never splits on
+  its own); and the dashboard shows a **capacity warning** when planned work
+  can't finish before its deadlines or doesn't fit the horizon. Every change
+  refreshes the plan on all open pages immediately
 - Tasks persist to a JSON file in the app's private data directory, written
   atomically so an ill-timed crash cannot corrupt the list
 

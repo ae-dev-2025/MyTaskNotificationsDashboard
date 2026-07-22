@@ -20,6 +20,15 @@
     </div>
 
     <div class="field">
+        <label for="task-notbefore">Not before</label>
+        <InputDate id="task-notbefore"
+                   Type="InputDateType.DateTimeLocal"
+                   @bind-Value="Form.NotBefore"
+                   class="form-control" />
+        <small class="field-hint">Earliest moment the planner may schedule this task</small>
+    </div>
+
+    <div class="field">
         <label for="task-priority">Priority</label>
         <InputSelect id="task-priority"
                      @bind-Value="Form.Priority"

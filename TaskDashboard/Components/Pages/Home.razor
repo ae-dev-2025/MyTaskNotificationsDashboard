@@ -129,6 +129,8 @@ else
 {
     <TaskModal Title="@(editingId is null ? "Add task" : "Edit task")"
                Form="form"
+               ShowSplit="CanSplitEditing"
+               OnSplit="SplitAsync"
                OnSave="SaveAsync"
                OnCancel="CloseModal" />
 }
@@ -184,11 +186,25 @@ else
     {
         if (editingId is { } id)
         {
-            await Todos.UpdateAsync(id, form.Title, form.Deadline, form.Priority, form.EstimatedTime);
+            await Todos.UpdateAsync(id, form.Title, form.Deadline, form.Priority, form.EstimatedTime, form.NotBefore);
         }
         else
         {
-            await Todos.AddAsync(form.Title, form.Deadline, form.Priority, form.EstimatedTime);
+            await Todos.AddAsync(form.Title, form.Deadline, form.Priority, form.EstimatedTime, form.NotBefore);
+        }
+
+        modalOpen = false;
+    }
+
+    private bool CanSplitEditing =>
+        editingId is { } id
+        && Todos.Items.FirstOrDefault(i => i.Id == id) is { IsDone: false, IsInProgress: false };
+
+    private async Task SplitAsync(int parts)
+    {
+        if (editingId is { } id)
+        {
+            await Todos.SplitAsync(id, parts);
         }
 
         modalOpen = false;

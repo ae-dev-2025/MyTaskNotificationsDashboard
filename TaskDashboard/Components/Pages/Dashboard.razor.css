@@ -36,6 +36,23 @@
     color: #b02a37;
 }
 
+.capacity-banner {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    border: 1px solid #f1aeb5;
+    background: #fdf2f3;
+    color: #842029;
+    border-radius: 0.5rem;
+    padding: 0.6rem 1rem;
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.capacity-sep {
+    color: #b02a37;
+}
+
 .panels {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));

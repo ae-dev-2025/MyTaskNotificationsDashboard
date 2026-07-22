@@ -8,6 +8,17 @@
     these.
 </p>
 
+<div class="planner-settings">
+    <label for="break-minutes">Break between tasks (minutes)</label>
+    <input id="break-minutes"
+           type="number"
+           class="form-control break-input"
+           min="0" max="120"
+           value="@Dashboard.BreakMinutes"
+           @onchange="OnBreakChangedAsync" />
+    <small class="settings-hint">The planner leaves this gap after every task before scheduling the next.</small>
+</div>
+
 <div class="blocked-toolbar">
     <button type="button" class="btn btn-primary" @onclick="BeginAdd">Add blocked time</button>
 </div>
@@ -60,6 +71,14 @@ else
     private Guid? editingId;
 
     protected override Task OnInitializedAsync() => Dashboard.LoadAsync();
+
+    private async Task OnBreakChangedAsync(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var minutes))
+        {
+            await Dashboard.SetBreakMinutesAsync(minutes);
+        }
+    }
 
     private void BeginAdd()
     {

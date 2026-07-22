@@ -31,6 +31,31 @@
     margin-top: 1.1rem;
 }
 
+.split-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1.1rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid #e5e5e5;
+}
+
+.split-row label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #495057;
+}
+
+.split-select {
+    width: auto;
+}
+
+.split-hint {
+    display: block;
+    margin-top: 0.35rem;
+    color: #868e96;
+}
+
 /* The ValidationSummary list is rendered by a child component, so reach
    through the CSS scope to style it. */
 .modal-panel ::deep .validation-errors {

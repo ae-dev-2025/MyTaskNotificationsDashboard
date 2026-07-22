@@ -58,12 +58,13 @@ async Task Step(string name, Func<Task> body)
 async Task OpenAddModal() =>
     await page.GetByRole(AriaRole.Button, new() { Name = "Add task", Exact = true }).ClickAsync();
 
-async Task FillModal(string? title, string? deadline, string? priority, string? estimate)
+async Task FillModal(string? title, string? deadline, string? priority, string? estimate, string? notBefore = null)
 {
     if (title is not null) await modal.GetByLabel("Title").FillAsync(title);
     if (deadline is not null) await modal.GetByLabel("Deadline").FillAsync(deadline);
     if (priority is not null) await modal.GetByLabel("Priority").SelectOptionAsync(priority);
     if (estimate is not null) await modal.GetByLabel("Estimate (mins)").FillAsync(estimate);
+    if (notBefore is not null) await modal.GetByLabel("Not before").FillAsync(notBefore);
 }
 
 async Task SaveModal() =>
@@ -72,13 +73,36 @@ async Task SaveModal() =>
 async Task CancelModal() =>
     await modal.GetByRole(AriaRole.Button, new() { Name = "Cancel" }).ClickAsync();
 
-async Task AddTask(string title, string? deadline, string? priority, string? estimate)
+async Task AddTask(string title, string? deadline, string? priority, string? estimate, string? notBefore = null)
 {
     await OpenAddModal();
-    await FillModal(title, deadline, priority, estimate);
+    await FillModal(title, deadline, priority, estimate, notBefore);
     await SaveModal();
     await Expect(modal).ToHaveCountAsync(0);
 }
+
+// Reads a calendar slot's planned [start, end] as minutes-of-day from its
+// tooltip. Returns null when the slot isn't on the visible week.
+async Task<(int Start, int End)?> SlotTimes(string exactTitle)
+{
+    var raw = await page.EvaluateAsync<string>(
+        """
+        (title) => {
+            const el = [...document.querySelectorAll('.cal-slot')].find(e =>
+                (e.querySelector('.cal-block-title')?.innerText ?? '').trim() === title);
+            if (!el) return '';
+            const m = (el.getAttribute('title') || '').match(/planned (\d\d):(\d\d)–(\d\d):(\d\d)/);
+            return m ? `${+m[1] * 60 + +m[2]},${+m[3] * 60 + +m[4]}` : '';
+        }
+        """, exactTitle);
+    if (string.IsNullOrEmpty(raw)) return null;
+    var parts = raw.Split(',');
+    return (int.Parse(parts[0]), int.Parse(parts[1]));
+}
+
+// Gap between two slots in minutes, tolerant of a midnight crossing.
+static int GapMinutes(int firstEnd, int secondStart) =>
+    secondStart >= firstEnd ? secondStart - firstEnd : secondStart + 1440 - firstEnd;
 
 async Task ResetAllTasks()
 {
@@ -262,6 +286,110 @@ if (mode == "migrated")
         await Expect(Row("Legacy task").Locator(".badge.priority")).ToHaveTextAsync(new Regex("Low"));
         await Expect(Row("Legacy task").Locator(".estimate")).ToContainTextAsync("15m");
     });
+
+    Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
+    return failures == 0 ? 0 : 1;
+}
+
+if (mode == "realism")
+{
+    static string Dt(DateTime d) => d.ToString("yyyy-MM-ddTHH:mm");
+
+    async Task SetBreak(string minutes)
+    {
+        await NavTo("Blocked time", "Blocked time");
+        await page.GetByLabel("Break between tasks (minutes)").FillAsync(minutes);
+    }
+
+    await Step("prep: clear blocked periods, break at 15", async () =>
+    {
+        await NavTo("Blocked time", "Blocked time");
+        while (await page.Locator(".blocked-item").CountAsync() > 0)
+        {
+            await page.Locator(".blocked-item").First
+                .GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Delete") }).ClickAsync();
+            await page.WaitForTimeoutAsync(200);
+        }
+        await page.GetByLabel("Break between tasks (minutes)").FillAsync("15");
+    });
+
+    await Step("prep: seed two 30-minute tasks", async () =>
+    {
+        await NavTo("Tasks", "Tasks");
+        await ResetAllTasks();
+        await AddTask("First job", null, null, "30");
+        await AddTask("Second job", null, null, "30");
+    });
+
+    await Step("breaks: 15-minute gap between consecutive tasks", async () =>
+    {
+        await NavTo("Calendar", "Calendar");
+        var first = await SlotTimes("First job") ?? throw new Exception("First job slot missing");
+        var second = await SlotTimes("Second job") ?? throw new Exception("Second job slot missing");
+        var gap = GapMinutes(first.End, second.Start);
+        if (gap < 15) throw new Exception($"gap was {gap} min, expected >= 15");
+    });
+
+    await Step("breaks: raising the setting to 30 widens the gap", async () =>
+    {
+        await SetBreak("30");
+        await NavTo("Calendar", "Calendar");
+        var first = await SlotTimes("First job") ?? throw new Exception("First job slot missing");
+        var second = await SlotTimes("Second job") ?? throw new Exception("Second job slot missing");
+        var gap = GapMinutes(first.End, second.Start);
+        if (gap < 30) throw new Exception($"gap was {gap} min after setting 30");
+    });
+
+    await Step("split: edit modal turns one task into two parts", async () =>
+    {
+        await NavTo("Tasks", "Tasks");
+        await AddTask("Big job", null, null, "60");
+        await Row("Big job").GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Edit") }).ClickAsync();
+        await Expect(modal.Locator(".split-row")).ToHaveCountAsync(1);
+        await modal.Locator(".btn-split").ClickAsync();
+        await Expect(modal).ToHaveCountAsync(0);
+        await Expect(Row("Big job (1/2)")).ToHaveCountAsync(1);
+        await Expect(Row("Big job (2/2)")).ToHaveCountAsync(1);
+        await Expect(Row("Big job (1/2)").Locator(".estimate")).ToContainTextAsync("30m");
+        await Expect(Row("Big job (2/2)").Locator(".estimate")).ToContainTextAsync("30m");
+    });
+
+    await Step("not-before: a High task still waits for its earliest start", async () =>
+    {
+        await AddTask("Waiting job", null, "High", "30", Dt(DateTime.Today.AddDays(1).AddHours(12)));
+        await NavTo("Calendar", "Calendar");
+        var placement = await page.EvaluateAsync<string>(
+            """
+            () => {
+                const inToday = [...document.querySelectorAll('.cal-day.today .cal-slot')]
+                    .some(e => e.innerText.includes('Waiting job'));
+                const anywhere = [...document.querySelectorAll('.cal-slot')]
+                    .some(e => e.innerText.includes('Waiting job'));
+                return `${inToday},${anywhere}`;
+            }
+            """);
+        if (placement != "false,true") throw new Exception($"today,anywhere = {placement}; expected false,true");
+    });
+
+    await Step("capacity: impossible deadline raises the banner", async () =>
+    {
+        await NavTo("Tasks", "Tasks");
+        await AddTask("Crunch job", Dt(DateTime.Now.AddMinutes(30)), "Urgent", "120");
+        await NavTo("Dashboard", "Dashboard");
+        await Expect(page.Locator(".capacity-banner")).ToHaveCountAsync(1);
+        await Expect(page.Locator(".capacity-banner")).ToContainTextAsync("can't finish before the deadline");
+    });
+
+    await Step("capacity: deleting the offender clears the banner", async () =>
+    {
+        await NavTo("Tasks", "Tasks");
+        await Row("Crunch job").GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Delete") }).ClickAsync();
+        await NavTo("Dashboard", "Dashboard");
+        await Expect(page.Locator(".capacity-banner")).ToHaveCountAsync(0);
+    });
+
+    await Step("cleanup: break restored to 15", () => SetBreak("15"));
+    await Shot("realism-01.png");
 
     Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
     return failures == 0 ? 0 : 1;
