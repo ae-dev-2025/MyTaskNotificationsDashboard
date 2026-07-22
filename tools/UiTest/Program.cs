@@ -397,6 +397,15 @@ if (mode == "tracking")
     });
     await Shot("trk-02-completed.png");
 
+    await Step("calibration: accuracy tile present in learning state", async () =>
+    {
+        // Test completions span seconds, which the outlier filter rejects, so
+        // after a reset the tile must be calibrating at 0/5.
+        await Expect(page.Locator(".tile-accuracy")).ToHaveCountAsync(1);
+        await Expect(page.Locator(".tile-accuracy")).ToContainTextAsync("0/5");
+        await Expect(page.Locator(".tile-accuracy")).ToContainTextAsync("calibrating");
+    });
+
     await Step("calendar: done block present with real span", async () =>
     {
         await NavTo("Calendar", "Calendar");

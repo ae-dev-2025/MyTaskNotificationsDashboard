@@ -76,10 +76,14 @@ added later by restoring their target frameworks in
 - Tasks persist to a JSON file in the app's private data directory, written
   atomically so an ill-timed crash cannot corrupt the list
 
+- **Estimate calibration**: once five completed tasks carry a real
+  [started, finished] span and an estimate, the dashboard shows your personal
+  accuracy factor (e.g. ×1.4 — tasks take 1.4× what you guess). Sub-5-minute
+  completions and extreme ratios are excluded as noise. Display-only by
+  design: the planner keeps using your raw estimates
+
 ## Roadmap
 
-- **Estimate calibration** — with real [started, finished] spans accumulating,
-  learn how your estimates compare to reality and let the planner correct for it
 - **Local notifications** for tasks that are due soon or overdue — the reason
   this is a MAUI app — on both Android and Windows
 - **Backend + sync** so tasks and notification state follow you across devices
