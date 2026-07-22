@@ -291,6 +291,84 @@ if (mode == "migrated")
     return failures == 0 ? 0 : 1;
 }
 
+if (mode == "theme")
+{
+    async Task<string> HtmlTheme() =>
+        await page.EvaluateAsync<string>("document.documentElement.getAttribute('data-bs-theme') ?? ''");
+
+    await Step("theme: an effective theme is applied on startup", async () =>
+    {
+        var t = await HtmlTheme();
+        if (t is not ("light" or "dark")) throw new Exception($"data-bs-theme='{t}'");
+    });
+
+    await Step("theme: normalize preference to System", async () =>
+    {
+        for (var i = 0; i < 3; i++)
+        {
+            if ((await page.Locator(".theme-toggle").InnerTextAsync()).Contains("System")) return;
+            await page.Locator(".theme-toggle").ClickAsync();
+            await page.WaitForTimeoutAsync(250);
+        }
+        throw new Exception("could not cycle back to System");
+    });
+
+    await Step("theme: Light forces light", async () =>
+    {
+        await page.Locator(".theme-toggle").ClickAsync();
+        await Expect(page.Locator(".theme-toggle")).ToContainTextAsync("Light");
+        if (await HtmlTheme() != "light") throw new Exception($"attr={await HtmlTheme()}");
+    });
+
+    await Step("theme: Dark forces dark and recolors surfaces", async () =>
+    {
+        await page.Locator(".theme-toggle").ClickAsync();
+        await Expect(page.Locator(".theme-toggle")).ToContainTextAsync("Dark");
+        if (await HtmlTheme() != "dark") throw new Exception($"attr={await HtmlTheme()}");
+        await NavTo("Dashboard", "Dashboard");
+        var bg = await page.EvaluateAsync<string>(
+            "getComputedStyle(document.querySelector('.tile')).backgroundColor");
+        if (!bg.Contains("34, 38, 43")) throw new Exception($"tile background stayed {bg}"); // --surface dark = #22262b
+    });
+    await Shot("theme-01-dark-dashboard.png");
+
+    await Step("theme: calendar renders in dark", async () =>
+    {
+        await NavTo("Calendar", "Calendar");
+        await page.EvalOnSelectorAsync(".cal-scroll",
+            "el => { el.scrollTop = Math.max(0, (new Date().getHours() - 1.5) * 48); }");
+        var bg = await page.EvaluateAsync<string>(
+            "getComputedStyle(document.querySelector('.cal-day.today')).backgroundColor");
+        if (bg.Contains("247, 251, 255")) throw new Exception("today column still light-tinted");
+    });
+    await Shot("theme-02-dark-calendar.png");
+
+    // Deliberately left on Dark: themeverify asserts it survives a restart.
+    Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
+    return failures == 0 ? 0 : 1;
+}
+
+if (mode == "themeverify")
+{
+    await Step("theme: dark preference survived restart", async () =>
+    {
+        var t = await page.EvaluateAsync<string>("document.documentElement.getAttribute('data-bs-theme') ?? ''");
+        if (t != "dark") throw new Exception($"data-bs-theme='{t}' after restart");
+        await Expect(page.Locator(".theme-toggle")).ToContainTextAsync("Dark");
+    });
+
+    await Step("theme: restored to System", async () =>
+    {
+        await page.Locator(".theme-toggle").ClickAsync();
+        await Expect(page.Locator(".theme-toggle")).ToContainTextAsync("System");
+        var t = await page.EvaluateAsync<string>("document.documentElement.getAttribute('data-bs-theme') ?? ''");
+        if (t is not ("light" or "dark")) throw new Exception($"attr='{t}'");
+    });
+
+    Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
+    return failures == 0 ? 0 : 1;
+}
+
 if (mode == "realism")
 {
     static string Dt(DateTime d) => d.ToString("yyyy-MM-ddTHH:mm");

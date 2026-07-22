@@ -80,6 +80,9 @@ added later by restoring their target frameworks in
   its own); and the dashboard shows a **capacity warning** when planned work
   can't finish before its deadlines or doesn't fit the horizon. Every change
   refreshes the plan on all open pages immediately
+- **Dark mode**: follows the device's light/dark setting by default, with a
+  System → Light → Dark override in the sidebar, persisted across restarts.
+  Forcing Dark is recommended for always-on AMOLED displays
 - Tasks persist to a JSON file in the app's private data directory, written
   atomically so an ill-timed crash cannot corrupt the list
 

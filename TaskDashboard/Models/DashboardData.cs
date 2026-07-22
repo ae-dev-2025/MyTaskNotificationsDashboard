@@ -16,4 +16,7 @@ public class DashboardData
     /// <summary>Mandatory gap the planner leaves between tasks, in minutes.
     /// Older files lack the property and fall back to the default.</summary>
     public int BreakMinutes { get; set; } = 15;
+
+    /// <summary>Theme preference: "system", "light" or "dark".</summary>
+    public string Theme { get; set; } = "system";
 }

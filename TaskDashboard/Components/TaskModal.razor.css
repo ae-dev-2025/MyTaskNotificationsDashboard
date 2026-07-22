@@ -1,7 +1,7 @@
 .modal-backdrop-area {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.45);
+    background: var(--backdrop);
     display: flex;
     align-items: flex-start;
     justify-content: center;
@@ -10,9 +10,9 @@
 }
 
 .modal-panel {
-    background: #fff;
+    background: var(--surface);
     border-radius: 0.5rem;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+    box-shadow: var(--panel-shadow);
     padding: 1.25rem 1.5rem 1.5rem;
     width: 100%;
     max-width: 26rem;
@@ -37,13 +37,13 @@
     gap: 0.5rem;
     margin-top: 1.1rem;
     padding-top: 0.9rem;
-    border-top: 1px solid #e5e5e5;
+    border-top: 1px solid var(--border-subtle);
 }
 
 .split-row label {
     font-size: 0.85rem;
     font-weight: 600;
-    color: #495057;
+    color: var(--label);
 }
 
 .split-select {
@@ -53,7 +53,7 @@
 .split-hint {
     display: block;
     margin-top: 0.35rem;
-    color: #868e96;
+    color: var(--text-faint);
 }
 
 /* The ValidationSummary list is rendered by a child component, so reach
