@@ -15,6 +15,11 @@ public class DashboardService
     private DashboardData data = new();
     private bool loaded;
 
+    // Serializes load and save: Blazor components load concurrently on
+    // startup (NavMenu and the page both call LoadAsync), and overlapping
+    // saves would race on the temp-file swap below.
+    private readonly SemaphoreSlim gate = new(1, 1);
+
     public IReadOnlyList<TodoItem> Items => data.Tasks;
 
     public IReadOnlyList<BlockedPeriod> BlockedPeriods => data.BlockedPeriods;
@@ -34,27 +39,40 @@ public class DashboardService
             return;
         }
 
-        var migrated = false;
+        await gate.WaitAsync();
         try
         {
-            if (File.Exists(StoragePath))
+            if (loaded)
             {
-                var json = await File.ReadAllTextAsync(StoragePath);
-                data = Parse(json, out migrated);
+                return;
+            }
+
+            var migrated = false;
+            try
+            {
+                if (File.Exists(StoragePath))
+                {
+                    var json = await File.ReadAllTextAsync(StoragePath);
+                    data = Parse(json, out migrated);
+                }
+            }
+            catch (IOException)
+            {
+                // Unreadable file — start fresh rather than breaking the app.
+            }
+
+            loaded = true;
+
+            if (migrated)
+            {
+                // Rewrite the legacy file in the current format straight away,
+                // so the migration path runs once rather than on every launch.
+                await SaveCoreAsync();
             }
         }
-        catch (IOException)
+        finally
         {
-            // Unreadable file — start fresh rather than breaking the app.
-        }
-
-        loaded = true;
-
-        if (migrated)
-        {
-            // Rewrite the legacy file in the current format straight away, so
-            // the migration path runs once rather than on every launch.
-            await SaveAsync();
+            gate.Release();
         }
     }
 
@@ -310,11 +328,28 @@ public class DashboardService
 
     private async Task SaveAsync()
     {
+        await gate.WaitAsync();
+        try
+        {
+            await SaveCoreAsync();
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    // Must be called with the gate held; LoadAsync uses it directly because
+    // SemaphoreSlim is not reentrant.
+    private async Task SaveCoreAsync()
+    {
         var json = JsonSerializer.Serialize(data, TodoJsonContext.Default.DashboardData);
 
         // Write to a sibling temp file and swap it in, so a crash mid-write
         // leaves the previous document intact instead of a truncated file.
-        var tempPath = StoragePath + ".tmp";
+        // The name is unique per save so two writers can never consume each
+        // other's temp file.
+        var tempPath = $"{StoragePath}.{Guid.NewGuid():N}.tmp";
         await File.WriteAllTextAsync(tempPath, json);
         File.Move(tempPath, StoragePath, overwrite: true);
 
