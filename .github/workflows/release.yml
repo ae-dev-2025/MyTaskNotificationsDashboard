@@ -34,8 +34,13 @@ jobs:
       - name: Install MAUI workloads
         run: dotnet workload install maui-windows android
 
-      - name: Publish Windows (Release, win-x64)
-        run: dotnet publish TaskDashboard/TaskDashboard.csproj -f net10.0-windows10.0.19041.0 -c Release
+      # Self-contained on both axes (.NET runtime and Windows App SDK), so the
+      # zip genuinely is "unzip and run" on a machine with neither installed --
+      # which includes the hosted runner the demo job runs it on. Without
+      # WindowsAppSDKSelfContained the exe exits at startup when the runtime
+      # is missing, before any window or WebView exists.
+      - name: Publish Windows (Release, win-x64, self-contained)
+        run: dotnet publish TaskDashboard/TaskDashboard.csproj -f net10.0-windows10.0.19041.0 -c Release -p:SelfContained=true -p:WindowsAppSDKSelfContained=true
 
       - name: Zip Windows build
         shell: pwsh

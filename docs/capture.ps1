@@ -100,17 +100,27 @@ try {
     Write-Host "seeded demo data"
 
     $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=$Port"
-    Start-Process $ExePath
+    $proc = Start-Process $ExePath -PassThru
     $ready = $false
-    foreach ($i in 1..30) {
+    foreach ($i in 1..45) {
         Start-Sleep -Seconds 2
+        if ($proc.HasExited) {
+            # Dying before CDP appears is almost always a missing runtime on
+            # this machine -- a framework-dependent publish needs both the
+            # .NET runtime and the Windows App SDK runtime preinstalled.
+            throw ("App exited immediately (code $($proc.ExitCode)) before exposing CDP. " +
+                   "If this is a bare machine, use a publish with SelfContained=true and " +
+                   "WindowsAppSDKSelfContained=true.")
+        }
         try {
             Invoke-WebRequest "http://localhost:$Port/json/version" -UseBasicParsing -TimeoutSec 5 | Out-Null
             $ready = $true
             break
         } catch { }
     }
-    if (-not $ready) { throw "App did not expose CDP on port $Port within 60s." }
+    if (-not $ready) {
+        throw "App is running (pid $($proc.Id)) but never exposed CDP on port $Port -- check WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS reached the process and the WebView2 runtime is present."
+    }
     Write-Host "app is up, CDP reachable"
 
     Push-Location $repo
