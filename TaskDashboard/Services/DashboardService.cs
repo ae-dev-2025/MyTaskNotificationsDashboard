@@ -262,6 +262,31 @@ public class DashboardService
         await SaveAsync();
     }
 
+    public bool NotificationsEnabled => data.NotificationsEnabled;
+
+    public int NotificationLeadMinutes =>
+        Math.Clamp(data.NotificationLeadMinutes, 0, NotificationScheduling.MaxLeadMinutes);
+
+    public async Task SetNotificationsEnabledAsync(bool enabled)
+    {
+        data.NotificationsEnabled = enabled;
+        await SaveAsync();
+    }
+
+    public async Task SetNotificationLeadMinutesAsync(int minutes)
+    {
+        data.NotificationLeadMinutes = Math.Clamp(minutes, 0, NotificationScheduling.MaxLeadMinutes);
+        await SaveAsync();
+    }
+
+    public bool ShowCurrentTaskNotification => data.ShowCurrentTaskNotification;
+
+    public async Task SetShowCurrentTaskNotificationAsync(bool enabled)
+    {
+        data.ShowCurrentTaskNotification = enabled;
+        await SaveAsync();
+    }
+
     public async Task DeleteAsync(Guid id)
     {
         if (data.Tasks.RemoveAll(i => i.Id == id) > 0)
