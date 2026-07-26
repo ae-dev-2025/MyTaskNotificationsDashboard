@@ -4,9 +4,9 @@ using TaskDashboard.Models;
 namespace TaskDashboard.Services;
 
 /// <summary>
-/// Holds the dashboard's data — tasks and blocked periods — and mirrors it
-/// into a single JSON document in the app's private data directory, written
-/// atomically so tasks and blocked periods stay consistent together.
+/// Holds the dashboard's data — tasks, blocked periods and presets — and
+/// mirrors it into a single JSON document in the app's private data directory,
+/// written atomically so all of it stays consistent together.
 /// </summary>
 public class DashboardService
 {
@@ -23,6 +23,11 @@ public class DashboardService
     public IReadOnlyList<TodoItem> Items => data.Tasks;
 
     public IReadOnlyList<BlockedPeriod> BlockedPeriods => data.BlockedPeriods;
+
+    /// <summary>Saved task defaults, ordered by title so the picker and the
+    /// management page agree and neither depends on insertion order.</summary>
+    public IReadOnlyList<TaskPreset> Presets =>
+        data.Presets.OrderBy(p => p.Title, StringComparer.CurrentCultureIgnoreCase).ToList();
 
     public TimeSpan BreakBetweenTasks => TimeSpan.FromMinutes(Math.Clamp(data.BreakMinutes, 0, 120));
 
@@ -349,6 +354,57 @@ public class DashboardService
         {
             await SaveAsync();
         }
+    }
+
+    // ---- presets ----
+
+    public async Task AddPresetAsync(PresetForm form)
+    {
+        if (form.Title.Trim().Length == 0)
+        {
+            return;
+        }
+
+        var preset = new TaskPreset();
+        form.ApplyTo(preset);
+        data.Presets.Add(preset);
+        await SaveAsync();
+    }
+
+    public async Task UpdatePresetAsync(Guid id, PresetForm form)
+    {
+        var preset = data.Presets.FirstOrDefault(p => p.Id == id);
+        if (preset is null || form.Title.Trim().Length == 0)
+        {
+            return;
+        }
+
+        form.ApplyTo(preset);
+        await SaveAsync();
+    }
+
+    public async Task DeletePresetAsync(Guid id)
+    {
+        if (data.Presets.RemoveAll(p => p.Id == id) > 0)
+        {
+            await SaveAsync();
+        }
+    }
+
+    /// <summary>Matches presets for the picker's search box: a case-insensitive
+    /// substring of the title. An empty query returns everything, so opening the
+    /// picker shows the whole list rather than nothing.</summary>
+    public IReadOnlyList<TaskPreset> SearchPresets(string? query)
+    {
+        var trimmed = query?.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return Presets;
+        }
+
+        return Presets
+            .Where(p => p.Title.Contains(trimmed, StringComparison.CurrentCultureIgnoreCase))
+            .ToList();
     }
 
     private async Task SaveAsync()

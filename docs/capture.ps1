@@ -81,10 +81,25 @@ function Build-DemoJson {
                     Start = Iso $now.Date.AddDays(1).AddHours(15); End = Iso $now.Date.AddDays(1).AddHours(16) }
     )
 
+    # Presets the picker can offer. "Weekly review" and "Prepare the demo
+    # slides" both contain "re", which is what the picker screenshot searches
+    # for -- a filtered list demonstrates search better than a full one.
+    $presets = @(
+        [ordered]@{ Id = '00000070-1111-2222-3333-444444444444'; Title = 'Daily standup'
+                    Priority = 'High'; EstimatedTime = '00:15:00'; CreatedAt = Iso $now.AddDays(-30) }
+        [ordered]@{ Id = '00000071-1111-2222-3333-444444444444'; Title = 'Weekly review'
+                    Priority = 'Normal'; EstimatedTime = '00:45:00'; CreatedAt = Iso $now.AddDays(-30) }
+        [ordered]@{ Id = '00000072-1111-2222-3333-444444444444'; Title = 'Prepare the demo slides'
+                    Priority = 'Urgent'; EstimatedTime = '01:00:00'; CreatedAt = Iso $now.AddDays(-30) }
+        [ordered]@{ Id = '00000073-1111-2222-3333-444444444444'; Title = 'Triage the inbox'
+                    Priority = 'Low'; EstimatedTime = '00:30:00'; CreatedAt = Iso $now.AddDays(-30) }
+    )
+
     # The notification settings are stated rather than left to fall back on the
     # model's defaults, so the Notifications screenshot keeps showing the same
     # values if a default is ever retuned.
-    $doc = [ordered]@{ Version = 2; Tasks = $tasks; BlockedPeriods = $blocked; BreakMinutes = 15; Theme = 'system'
+    $doc = [ordered]@{ Version = 2; Tasks = $tasks; BlockedPeriods = $blocked; Presets = $presets
+                       BreakMinutes = 15; Theme = 'system'
                        NotificationsEnabled = $true; NotificationLeadMinutes = 60
                        ShowCurrentTaskNotification = $true }
     return ($doc | ConvertTo-Json -Depth 6)

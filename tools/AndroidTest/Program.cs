@@ -51,6 +51,15 @@ async Task SetValue(string selector, string value) =>
         $" el.value = {JsonSerializer.Serialize(value)};" +
         " el.dispatchEvent(new Event('change', { bubbles: true })); })()");
 
+// Blazor's @bind listens for 'change', but @oninput handlers — the preset
+// search box — only ever see 'input'. Dispatch that one when the value must
+// reach an @oninput binding.
+async Task TypeValue(string selector, string value) =>
+    await cdp.EvalAsync(
+        $"(() => {{ const el = document.querySelector({JsonSerializer.Serialize(selector)});" +
+        $" el.value = {JsonSerializer.Serialize(value)};" +
+        " el.dispatchEvent(new Event('input', { bubbles: true })); })()");
+
 async Task WaitFor(string expression, string what, int timeoutMs = 8000)
 {
     var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -95,8 +104,8 @@ async Task AddTask(string title, string? priority, string? estimate)
 async Task Shot(string name)
 {
     // Screenshots are evidence, not assertions: some real-device WebViews
-    // (observed on Samsung) never answer Page.captureScreenshot. Skip rather
-    // than fail the run; use adb screencap externally when a picture matters.
+    // never answer Page.captureScreenshot. Skip rather than fail the run; use
+    // adb screencap externally when a picture matters.
     if (screenshotsBroken)
     {
         return;
@@ -104,13 +113,18 @@ async Task Shot(string name)
 
     try
     {
+        // Create the directory here rather than trusting the caller: a missing
+        // one used to surface as "unavailable on this WebView", which blamed
+        // the device for a path that simply did not exist and made a working
+        // WebView look broken.
+        Directory.CreateDirectory(shotDir);
         var png = await cdp.ScreenshotAsync();
         await File.WriteAllBytesAsync(Path.Combine(shotDir, name), png);
     }
     catch (Exception e)
     {
         screenshotsBroken = true;
-        Console.WriteLine($"note  screenshots unavailable on this WebView, skipping the rest ({e.Message.Split('\n')[0].Trim()})");
+        Console.WriteLine($"note  screenshots unavailable, skipping the rest ({e.Message.Split('\n')[0].Trim()})");
     }
 }
 
@@ -224,6 +238,43 @@ await Step("toggle: third task added and completed", async () =>
     await WaitFor("document.querySelectorAll('.task-item.done').length === 1", "done row");
 });
 await Shot("droid-1-tasks.png");
+
+await Step("presets: create one on the device", async () =>
+{
+    await NavTo("presets", "Presets");
+    while (await Count(".preset-item") > 0)
+    {
+        await Click(".preset-item .btn-outline-danger");
+        await Task.Delay(200);
+    }
+
+    await Click(".preset-toolbar button");
+    await WaitFor("document.querySelector('.modal-panel')", "modal open");
+    await SetValue("#preset-title", "Droid standup");
+    await SetValue("#preset-priority", "Urgent");
+    await SetValue("#preset-estimate", "25");
+    await Click(".modal-panel button[type=submit]");
+    await WaitFor("!document.querySelector('.modal-panel')", "modal closed");
+    if (await Count(".preset-item") != 1) throw new Exception("expected 1 preset");
+});
+
+await Step("presets: the picker fills the add dialog", async () =>
+{
+    await NavTo("tasks", "Tasks");
+    await Click(".task-toolbar button");
+    await WaitFor("document.querySelector('.preset-picker')", "picker present");
+
+    await TypeValue("#preset-search", "droid");
+    await WaitFor("document.querySelectorAll('.preset-option').length === 1", "one match");
+
+    await Click(".preset-option");
+    await WaitFor("document.querySelector('#task-title').value === 'Droid standup'", "title filled");
+    await WaitFor("document.querySelector('#task-estimate').value === '25'", "estimate filled");
+
+    // Cancel: this step is about the picker, not about adding another task.
+    await Click(".modal-actions button[type=button]");
+    await WaitFor("!document.querySelector('.modal-panel')", "modal closed");
+});
 
 await Step("blocked: add recurring Sleep period clear of now", async () =>
 {

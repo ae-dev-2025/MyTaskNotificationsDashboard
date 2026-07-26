@@ -63,6 +63,21 @@ SCREENS = [
       "Windows raises toasts while the app runs - unpackaged apps cannot "
       "schedule one for a closed app",
       "The always-on current task notification is Android only"]),
+    ("Presets", "7-presets",
+     "Stop retyping the tasks you do every week",
+     "A preset saves a title, priority and estimate. It deliberately saves no "
+     "dates - when a task is due is the part that differs every time you add "
+     "it, so that stays yours to set.",
+     ["Create them here, or save a task you have already typed as a preset",
+      "Editing a preset changes what future tasks start from, not past ones",
+      "Presets sort by title, so the list and the picker always agree"]),
+    ("Add task", "8-preset-picker",
+     "Pick one, adjust it, done",
+     "The add dialog searches your presets as you type. Choosing one fills the "
+     "title, priority and estimate, leaving the dates blank for you.",
+     ["Enter applies the top match without reaching for the mouse",
+      "The picker only appears when you have presets, and only when adding",
+      "Everything it fills stays editable before you save"]),
 ]
 
 SPECS = [

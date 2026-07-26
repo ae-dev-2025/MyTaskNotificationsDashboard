@@ -16,6 +16,8 @@ using static Microsoft.Playwright.Assertions;
 //   blocked       — blocked-time CRUD + planner routing around blocks
 //   blockedverify — after an app restart: asserts blocked periods persisted
 //   migrated      — after seeding a legacy v1 tasks.json: asserts it loaded intact
+//   presets       — preset CRUD, the add-dialog picker, and save-as-preset
+//   presetsverify — after an app restart: asserts presets persisted
 // Recommended order: calendar, suite, restart, verify, blocked, restart,
 // blockedverify, migration seed + restart, migrated.
 
@@ -67,8 +69,11 @@ async Task FillModal(string? title, string? deadline, string? priority, string? 
     if (notBefore is not null) await modal.GetByLabel("Not before").FillAsync(notBefore);
 }
 
+// Exact, because Playwright matches an accessible name by substring: the edit
+// dialog's "Save as preset" button would otherwise resolve alongside "Save"
+// and every save in every mode would fail on a strict-mode violation.
 async Task SaveModal() =>
-    await modal.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+    await modal.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
 
 async Task CancelModal() =>
     await modal.GetByRole(AriaRole.Button, new() { Name = "Cancel" }).ClickAsync();
@@ -160,7 +165,7 @@ if (mode == "blocked")
     await Step("blocked: validation rejects a missing label", async () =>
     {
         await page.GetByRole(AriaRole.Button, new() { Name = "Add blocked time" }).ClickAsync();
-        await modal.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+        await modal.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
         await Expect(modal.Locator(".validation-errors li").First).ToContainTextAsync("Give the period a label.");
         await modal.GetByRole(AriaRole.Button, new() { Name = "Cancel" }).ClickAsync();
     });
@@ -173,7 +178,7 @@ if (mode == "blocked")
         await modal.GetByLabel("Label").FillAsync("Sleep");
         await modal.GetByLabel("Start time").FillAsync(DateTime.Now.AddHours(3).ToString("HH:mm"));
         await modal.GetByLabel("End time").FillAsync(DateTime.Now.AddHours(11).ToString("HH:mm"));
-        await modal.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+        await modal.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
         await Expect(page.Locator(".blocked-item", new() { HasTextString = "Sleep" })).ToHaveCountAsync(1);
         await Expect(page.Locator(".blocked-item", new() { HasTextString = "Sleep" }))
             .ToContainTextAsync("Every day,");
@@ -186,7 +191,7 @@ if (mode == "blocked")
         await modal.GetByLabel("Repeats").SelectOptionAsync(new SelectOptionValue { Label = "One-off" });
         await modal.GetByLabel("Start", new() { Exact = true }).FillAsync(Dt(lunchStart));
         await modal.GetByLabel("End", new() { Exact = true }).FillAsync(Dt(lunchEnd));
-        await modal.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
+        await modal.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
         await Expect(page.Locator(".blocked-item")).ToHaveCountAsync(2);
     });
     await Shot("blk-01-list.png");
@@ -293,6 +298,180 @@ if (mode == "migrated")
     return failures == 0 ? 0 : 1;
 }
 
+if (mode == "presets")
+{
+    ILocator PresetRow(string text) => page.Locator(".preset-item", new() { HasTextString = text });
+
+    await Step("presets: page reachable via nav link", () => NavTo("Presets", "Presets"));
+
+    await Step("presets: reset any existing presets", async () =>
+    {
+        while (await page.Locator(".preset-item").CountAsync() > 0)
+        {
+            await page.Locator(".preset-item").First
+                .GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Delete") }).ClickAsync();
+            await page.WaitForTimeoutAsync(200);
+        }
+        await Expect(page.Locator(".preset-empty")).ToHaveCountAsync(1);
+    });
+
+    await Step("presets: validation rejects a missing title", async () =>
+    {
+        await page.GetByRole(AriaRole.Button, new() { Name = "Add preset" }).ClickAsync();
+        await modal.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
+        await Expect(modal.Locator(".validation-errors li").First).ToContainTextAsync("Give the preset a title.");
+        await modal.GetByRole(AriaRole.Button, new() { Name = "Cancel" }).ClickAsync();
+        await Expect(modal).ToHaveCountAsync(0);
+    });
+
+    await Step("presets: add Weekly review", async () =>
+    {
+        await page.GetByRole(AriaRole.Button, new() { Name = "Add preset" }).ClickAsync();
+        await modal.GetByLabel("Title").FillAsync("Weekly review");
+        await modal.GetByLabel("Priority").SelectOptionAsync("Normal");
+        await modal.GetByLabel("Estimate (mins)").FillAsync("60");
+        await modal.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
+        await Expect(PresetRow("Weekly review")).ToHaveCountAsync(1);
+        await Expect(PresetRow("Weekly review").Locator(".estimate")).ToContainTextAsync("1h");
+    });
+
+    await Step("presets: add Daily standup", async () =>
+    {
+        await page.GetByRole(AriaRole.Button, new() { Name = "Add preset" }).ClickAsync();
+        await modal.GetByLabel("Title").FillAsync("Daily standup");
+        await modal.GetByLabel("Priority").SelectOptionAsync("Urgent");
+        await modal.GetByLabel("Estimate (mins)").FillAsync("15");
+        await modal.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
+        await Expect(page.Locator(".preset-item")).ToHaveCountAsync(2);
+        await Expect(PresetRow("Daily standup").Locator(".badge.priority")).ToHaveTextAsync(new Regex("Urgent"));
+    });
+
+    await Step("presets: list is ordered by title, not insertion", async () =>
+    {
+        // Daily standup was added second; ordering by title must still put it
+        // first, so the picker and this page cannot disagree.
+        await Expect(page.Locator(".preset-item").First.Locator(".preset-title"))
+            .ToHaveTextAsync("Daily standup");
+    });
+
+    await Step("presets: edit updates the stored values", async () =>
+    {
+        await PresetRow("Weekly review")
+            .GetByRole(AriaRole.Button, new() { Name = "Edit" }).ClickAsync();
+        await Expect(modal.GetByLabel("Title")).ToHaveValueAsync("Weekly review");
+        await modal.GetByLabel("Estimate (mins)").FillAsync("90");
+        await modal.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
+        await Expect(PresetRow("Weekly review").Locator(".estimate")).ToContainTextAsync("1h 30m");
+    });
+    await Shot("pre-01-list.png");
+
+    await Step("picker: add dialog offers the presets", async () =>
+    {
+        await NavTo("Tasks", "Tasks");
+        await ResetAllTasks();
+        await OpenAddModal();
+        await Expect(modal.Locator(".preset-picker")).ToHaveCountAsync(1);
+        await Expect(modal.Locator(".preset-option")).ToHaveCountAsync(2);
+    });
+
+    await Step("picker: search filters the list", async () =>
+    {
+        await modal.GetByLabel("Start from a preset").FillAsync("week");
+        await Expect(modal.Locator(".preset-option")).ToHaveCountAsync(1);
+        await Expect(modal.Locator(".preset-option")).ToContainTextAsync("Weekly review");
+    });
+
+    await Step("picker: a query matching nothing says so", async () =>
+    {
+        await modal.GetByLabel("Start from a preset").FillAsync("nothing matches this");
+        await Expect(modal.Locator(".preset-option")).ToHaveCountAsync(0);
+        await Expect(modal.Locator(".preset-none")).ToHaveCountAsync(1);
+    });
+
+    await Step("picker: choosing a preset fills title, priority and estimate", async () =>
+    {
+        await modal.GetByLabel("Start from a preset").FillAsync("daily");
+        await modal.Locator(".preset-option").First.ClickAsync();
+        await Expect(modal.GetByLabel("Title")).ToHaveValueAsync("Daily standup");
+        await Expect(modal.GetByLabel("Priority")).ToHaveValueAsync("Urgent");
+        await Expect(modal.GetByLabel("Estimate (mins)")).ToHaveValueAsync("15");
+    });
+
+    await Step("picker: dates are left alone for the user to set", async () =>
+    {
+        // A preset carries no dates; applying one must not clear a deadline
+        // the user already typed, nor invent one.
+        await Expect(modal.GetByLabel("Deadline")).ToHaveValueAsync("");
+        await Expect(modal.GetByLabel("Not before")).ToHaveValueAsync("");
+    });
+    await Shot("pre-02-picker.png");
+
+    await Step("picker: saving creates the task from the preset", async () =>
+    {
+        await SaveModal();
+        await Expect(modal).ToHaveCountAsync(0);
+        await Expect(Row("Daily standup")).ToHaveCountAsync(1);
+        await Expect(Row("Daily standup").Locator(".badge.priority")).ToHaveTextAsync(new Regex("Urgent"));
+        await Expect(Row("Daily standup").Locator(".estimate")).ToContainTextAsync("15m");
+    });
+
+    await Step("edit dialog: no picker, but offers save as preset", async () =>
+    {
+        await Row("Daily standup").GetByRole(AriaRole.Button, new() { Name = "Edit" }).ClickAsync();
+        await Expect(modal.Locator(".preset-picker")).ToHaveCountAsync(0);
+        await Expect(modal.Locator(".btn-save-preset")).ToHaveCountAsync(1);
+    });
+
+    await Step("save as preset: captures the task's shape", async () =>
+    {
+        await modal.GetByLabel("Title").FillAsync("Ad-hoc chore");
+        await modal.Locator(".btn-save-preset").ClickAsync();
+        await Expect(modal).ToHaveCountAsync(0);
+        await NavTo("Presets", "Presets");
+        await Expect(PresetRow("Ad-hoc chore")).ToHaveCountAsync(1);
+        await Expect(page.Locator(".preset-item")).ToHaveCountAsync(3);
+    });
+
+    await Step("save as preset: left the task itself unchanged", async () =>
+    {
+        // The button captures a shape for next time; it is not a second Save.
+        await NavTo("Tasks", "Tasks");
+        await Expect(Row("Daily standup")).ToHaveCountAsync(1);
+        await Expect(Row("Ad-hoc chore")).ToHaveCountAsync(0);
+    });
+
+    Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
+    return failures == 0 ? 0 : 1;
+}
+
+if (mode == "presetsverify")
+{
+    await Step("persisted: presets survived restart", async () =>
+    {
+        await NavTo("Presets", "Presets");
+        await Expect(page.Locator(".preset-item")).ToHaveCountAsync(3);
+        await Expect(page.Locator(".preset-item", new() { HasTextString = "Daily standup" })).ToHaveCountAsync(1);
+        await Expect(page.Locator(".preset-item", new() { HasTextString = "Weekly review" })).ToHaveCountAsync(1);
+    });
+
+    await Step("persisted: edited estimate survived restart", async () =>
+    {
+        await Expect(page.Locator(".preset-item", new() { HasTextString = "Weekly review" }).Locator(".estimate"))
+            .ToContainTextAsync("1h 30m");
+    });
+
+    await Step("persisted: the picker still offers them after restart", async () =>
+    {
+        await NavTo("Tasks", "Tasks");
+        await OpenAddModal();
+        await Expect(modal.Locator(".preset-option")).ToHaveCountAsync(3);
+        await CancelModal();
+    });
+
+    Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
+    return failures == 0 ? 0 : 1;
+}
+
 if (mode == "capture")
 {
     // Produces the docs/ demo screenshots: every page in both themes, plus the
@@ -348,12 +527,29 @@ if (mode == "capture")
         await NavTo("Notifications", "Notifications");
         await page.WaitForTimeoutAsync(400);
         await Shot($"6-notifications-{theme}.png");
+
+        await NavTo("Presets", "Presets");
+        await page.WaitForTimeoutAsync(400);
+        await Shot($"7-presets-{theme}.png");
+
+        // The picker is the point of presets, and it only exists inside the
+        // add dialog, so photograph it there rather than settling for the
+        // management page alone.
+        await NavTo("Tasks", "Tasks");
+        await page.WaitForTimeoutAsync(300);
+        await OpenAddModal();
+        await Expect(modal).ToBeVisibleAsync();
+        await modal.GetByLabel("Start from a preset").FillAsync("re");
+        await page.WaitForTimeoutAsync(300);
+        await Shot($"8-preset-picker-{theme}.png");
+        await CancelModal();
+        await Expect(modal).ToHaveCountAsync(0);
     }
 
     await Capture("light");
     await Capture("dark");
     await page.EvaluateAsync("taskDashboard.applyTheme('system')");
-    Console.WriteLine($"CAPTURED 12 screenshots to {shotDir}");
+    Console.WriteLine($"CAPTURED 16 screenshots to {shotDir}");
     return 0;
 }
 
@@ -502,17 +698,39 @@ if (mode == "realism")
     {
         await AddTask("Waiting job", null, "High", "30", Dt(DateTime.Today.AddDays(1).AddHours(12)));
         await NavTo("Calendar", "Calendar");
-        var placement = await page.EvaluateAsync<string>(
+
+        async Task<string> Placement() => await page.EvaluateAsync<string>(
             """
             () => {
                 const inToday = [...document.querySelectorAll('.cal-day.today .cal-slot')]
                     .some(e => e.innerText.includes('Waiting job'));
-                const anywhere = [...document.querySelectorAll('.cal-slot')]
+                const onWeek = [...document.querySelectorAll('.cal-slot')]
                     .some(e => e.innerText.includes('Waiting job'));
-                return `${inToday},${anywhere}`;
+                return `${inToday},${onWeek}`;
             }
             """);
-        if (placement != "false,true") throw new Exception($"today,anywhere = {placement}; expected false,true");
+
+        var thisWeek = await Placement();
+        if (thisWeek.StartsWith("true"))
+        {
+            throw new Exception($"planned on today despite a not-before of tomorrow: {thisWeek}");
+        }
+
+        // Tomorrow is on next week's grid whenever today is the last day of the
+        // displayed week — every Sunday. Being clock-relative is not enough on
+        // its own; the assertion has to follow the task across the week bound
+        // or it fails one day in seven for a plan that is perfectly correct.
+        if (thisWeek == "false,false")
+        {
+            await page.GetByRole(AriaRole.Button, new() { Name = "Next week ›" }).ClickAsync();
+            var nextWeek = await Placement();
+            await page.GetByRole(AriaRole.Button, new() { Name = "Today", Exact = true }).ClickAsync();
+
+            if (nextWeek != "false,true")
+            {
+                throw new Exception($"not on this week, and next week = {nextWeek}; expected false,true");
+            }
+        }
     });
 
     await Step("capacity: impossible deadline raises the banner", async () =>
