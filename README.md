@@ -4,9 +4,10 @@ A personal dashboard for tracking tasks and surfacing notifications about them,
 built with **.NET MAUI Blazor Hybrid** (.NET 10), targeting **Windows** and
 **Android**.
 
-> **Status: early.** Task management is built, working, and tested end-to-end in
-> the native app. Notifications and the dashboard views described under
-> [Roadmap](#roadmap) are not implemented yet.
+> **Status: early.** Task management, the dashboard views and local
+> notifications are all built and working in the native app; everything but
+> notification delivery is covered by the end-to-end suites. What remains
+> under [Roadmap](#roadmap) is cross-device sync and the iOS targets.
 
 **See it without running it:** [docs/tour.html](docs/tour.html) is a
 screen-by-screen tour with every screenshot in both themes
@@ -28,8 +29,8 @@ fullest extent permitted by law — see sections 15 and 16 of the
 
 | Platform | Download | Install |
 | --- | --- | --- |
-| **Windows** (10 build 1809+, x64) | [TaskDashboard-windows-x64.zip](https://github.com/ae-dev-2025/MyTaskNotificationsDashboard/releases/latest/download/TaskDashboard-windows-x64.zip) | Unzip anywhere, run `TaskDashboard.exe`. SmartScreen will warn because the build is unsigned — *More info → Run anyway* |
-| **Android** (7.0+) | [TaskDashboard-android.apk](https://github.com/ae-dev-2025/MyTaskNotificationsDashboard/releases/latest/download/TaskDashboard-android.apk) | Open the APK on the phone and allow installing from unknown sources. Requires an up-to-date Android System WebView |
+| **Windows** (10 build 1809+, x64) | [TaskDashboard-windows-x64.zip](https://github.com/ae-dev-2025/MyTaskNotificationsDashboard/releases/latest/download/TaskDashboard-windows-x64.zip) | Unzip anywhere, run `TaskDashboard.exe` — the build is self-contained, so no .NET or Windows App SDK runtime is needed. SmartScreen will warn because the build is unsigned — *More info → Run anyway* |
+| **Android** (7.0+) | [TaskDashboard-android.apk](https://github.com/ae-dev-2025/MyTaskNotificationsDashboard/releases/latest/download/TaskDashboard-android.apk) | Open the APK on the phone and allow installing from unknown sources. Requires an up-to-date Android System WebView. Allow notifications when asked, or deadline reminders stay silent |
 
 Every merge to `main` automatically publishes a fresh
 [release](https://github.com/ae-dev-2025/MyTaskNotificationsDashboard/releases).
@@ -43,6 +44,8 @@ MAUI app because the goal of the project is **task notifications, and on Android
 that requires being a real app**: scheduled local notifications that fire when
 the app is closed, notification permissions, and delivery through the system
 tray are native-platform capabilities that a web page cannot reliably provide.
+That bet has since paid off — Android reminders are real `AlarmManager` alarms
+posted by a broadcast receiver, so they arrive with the app shut.
 
 MAUI Blazor Hybrid keeps the cost of that switch low — the UI is the same Razor
 component code the web version used, now hosted in a native WebView, so the app
@@ -88,19 +91,28 @@ added later by restoring their target frameworks in
 - **Dark mode**: follows the device's light/dark setting by default, with a
   System → Light → Dark override in the sidebar, persisted across restarts.
   Forcing Dark is recommended for always-on AMOLED displays
-- Tasks persist to a JSON file in the app's private data directory, written
-  atomically so an ill-timed crash cannot corrupt the list
-
 - **Estimate calibration**: once five completed tasks carry a real
   [started, finished] span and an estimate, the dashboard shows your personal
   accuracy factor (e.g. ×1.4 — tasks take 1.4× what you guess). Sub-5-minute
   completions and extreme ratios are excluded as noise. Display-only by
   design: the planner keeps using your raw estimates
+- **Local notifications** — the reason this is a MAUI app. Each task with a
+  deadline gets a heads-up reminder (an hour ahead by default, editable) and
+  a second one when it falls due. Separately, an **always-on notification**
+  can stay pinned with whatever the plan says you should be doing right now,
+  refreshed as the clock moves. Both are toggleable on the **Notifications**
+  page and both are on by default. Platform differences are real and worth
+  knowing:
+  - **Android** delivers reminders **even when the app is closed**, and is
+    the platform that gets the always-on current-task notification
+  - **Windows** shows reminders **while the app is running** — an unpackaged
+    Windows app cannot schedule a toast for a closed app — and has no
+    always-on notification
+- Tasks persist to a JSON file in the app's private data directory, written
+  atomically so an ill-timed crash cannot corrupt the list
 
 ## Roadmap
 
-- **Local notifications** for tasks that are due soon or overdue — the reason
-  this is a MAUI app — on both Android and Windows
 - **Backend + sync** so tasks and notification state follow you across devices
 - **iOS / Mac Catalyst** targets once a Mac build host is available
 
@@ -139,6 +151,11 @@ Requires the .NET 10 SDK with the `maui-windows` and `android` workloads
 | `TaskDashboard/Components/Pages/CalendarPage.razor` | The week-timeline calendar |
 | `design-system/` | Self-contained component previews, published to Claude Design |
 | `TaskDashboard/Components/Pages/BlockedTimePage.razor` | Blocked-time management |
+| `TaskDashboard/Components/Pages/Notifications.razor` | Reminder settings: on/off, lead time, always-on current task |
+| `TaskDashboard/Services/NotificationScheduling.cs` | Decides which reminders to fire and when — pure, shared by both platforms |
+| `TaskDashboard/Services/NotificationCoordinator.cs` | Keeps delivered notifications in step with the data and the clock |
+| `TaskDashboard/Platforms/Android/AndroidNotificationService.cs` | `AlarmManager` reminders + the ongoing current-task notification |
+| `TaskDashboard/Platforms/Windows/WindowsNotificationService.cs` | Toast reminders while the app runs |
 | `TaskDashboard/MauiProgram.cs` | App bootstrap and dependency injection |
 | `tools/UiTest/` | End-to-end UI tests for Windows (Playwright over CDP) |
 | `tools/AndroidTest/` | End-to-end UI tests for Android (raw CDP over adb) |
@@ -153,6 +170,14 @@ component.
 Serialization uses a source-generated `JsonSerializerContext` rather than
 reflection, so persistence keeps working under the trimming and AOT compilation
 MAUI applies to Android release builds.
+
+Which reminders should exist is decided by a single pure function shared by
+both platforms, so Windows and Android cannot disagree about what is due.
+Every edit re-syncs the schedule: each reminder carries a stable id derived
+from the task, the kind of reminder and its fire time, so moving a deadline
+replaces that task's alarm rather than stacking a second one on top of it, and
+deleting a task cancels its alarm. Android asks for notification permission on
+first launch; declining leaves the rest of the app fully usable.
 
 The UI is tested by driving the running native app over the Chrome DevTools
 Protocol, on both platforms:
