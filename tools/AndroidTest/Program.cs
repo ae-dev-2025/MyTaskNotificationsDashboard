@@ -276,6 +276,20 @@ await Step("presets: the picker fills the add dialog", async () =>
     await WaitFor("!document.querySelector('.modal-panel')", "modal closed");
 });
 
+await Step("calendar: zoom slider rescales the grid", async () =>
+{
+    await NavTo("calendar", "Calendar");
+    await WaitFor("document.querySelector('.cal-grid')?.getBoundingClientRect().height > 1100", "grid at default scale");
+    await cdp.EvalAsync(
+        "(() => { const s = document.querySelector('.cal-zoom-slider');" +
+        " s.value = '96'; s.dispatchEvent(new Event('input', { bubbles: true })); })()");
+    await WaitFor("Math.abs(document.querySelector('.cal-grid').getBoundingClientRect().height - 24 * 96) < 3", "grid rescaled to 96px hours");
+    await cdp.EvalAsync(
+        "(() => { const s = document.querySelector('.cal-zoom-slider');" +
+        " s.value = '48'; s.dispatchEvent(new Event('input', { bubbles: true })); })()");
+    await WaitFor("Math.abs(document.querySelector('.cal-grid').getBoundingClientRect().height - 24 * 48) < 3", "grid back at default");
+});
+
 await Step("blocked: add recurring Sleep period clear of now", async () =>
 {
     // Clock-relative window (now+3h .. now+11h) so the fixture can never
