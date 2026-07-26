@@ -344,12 +344,16 @@ if (mode == "capture")
         await NavTo("Blocked time", "Blocked time");
         await page.WaitForTimeoutAsync(400);
         await Shot($"5-blocked-time-{theme}.png");
+
+        await NavTo("Notifications", "Notifications");
+        await page.WaitForTimeoutAsync(400);
+        await Shot($"6-notifications-{theme}.png");
     }
 
     await Capture("light");
     await Capture("dark");
     await page.EvaluateAsync("taskDashboard.applyTheme('system')");
-    Console.WriteLine($"CAPTURED 10 screenshots to {shotDir}");
+    Console.WriteLine($"CAPTURED 12 screenshots to {shotDir}");
     return 0;
 }
 

@@ -81,7 +81,12 @@ function Build-DemoJson {
                     Start = Iso $now.Date.AddDays(1).AddHours(15); End = Iso $now.Date.AddDays(1).AddHours(16) }
     )
 
-    $doc = [ordered]@{ Version = 2; Tasks = $tasks; BlockedPeriods = $blocked; BreakMinutes = 15; Theme = 'system' }
+    # The notification settings are stated rather than left to fall back on the
+    # model's defaults, so the Notifications screenshot keeps showing the same
+    # values if a default is ever retuned.
+    $doc = [ordered]@{ Version = 2; Tasks = $tasks; BlockedPeriods = $blocked; BreakMinutes = 15; Theme = 'system'
+                       NotificationsEnabled = $true; NotificationLeadMinutes = 60
+                       ShowCurrentTaskNotification = $true }
     return ($doc | ConvertTo-Json -Depth 6)
 }
 

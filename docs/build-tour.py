@@ -54,6 +54,15 @@ SCREENS = [
      ["The break between tasks is a planner setting, not a per-task field",
       "Blocked periods draw straight onto the calendar as shading",
       "The planner routes around them rather than scheduling over them"]),
+    ("Notifications", "6-notifications",
+     "The reason this is a native app rather than a web page",
+     "Each deadline earns a heads-up ahead of time and a second reminder when "
+     "it falls due. A separate always-on notification can stay pinned with "
+     "whatever the plan says you should be doing now.",
+     ["Android reminders fire through AlarmManager with the app closed",
+      "Windows raises toasts while the app runs - unpackaged apps cannot "
+      "schedule one for a closed app",
+      "The always-on current task notification is Android only"]),
 ]
 
 SPECS = [
