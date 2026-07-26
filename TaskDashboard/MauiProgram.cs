@@ -21,6 +21,18 @@ public static class MauiProgram
 		// native app, and there is only ever one user in front of it.
 		builder.Services.AddSingleton<DashboardService>();
 
+		// Notification delivery is platform-specific; the coordinator wires it
+		// to data changes. Registered as a singleton and started from
+		// App.OnStart so reminders track the task list for the app's lifetime.
+#if ANDROID
+		builder.Services.AddSingleton<INotificationService, Platforms.Android.AndroidNotificationService>();
+#elif WINDOWS
+		builder.Services.AddSingleton<INotificationService, Platforms.Windows.WindowsNotificationService>();
+#else
+		builder.Services.AddSingleton<INotificationService, NullNotificationService>();
+#endif
+		builder.Services.AddSingleton<NotificationCoordinator>();
+
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();
 		builder.Logging.AddDebug();

@@ -1,0 +1,47 @@
+.blocked-intro {
+    color: var(--text-muted);
+    margin: 0.5rem 0 0;
+}
+
+.planner-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    margin-top: 1rem;
+    max-width: 26rem;
+}
+
+.planner-settings label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--label);
+}
+
+.settings-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    margin-bottom: 0.4rem;
+}
+
+.settings-toggle input {
+    width: 1rem;
+    height: 1rem;
+    cursor: pointer;
+}
+
+.break-input {
+    max-width: 8rem;
+}
+
+.break-input:disabled {
+    opacity: 0.5;
+}
+
+.settings-hint {
+    color: var(--text-faint);
+}
