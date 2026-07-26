@@ -172,6 +172,33 @@ if (mode == "verify")
     return failures == 0 ? 0 : 1;
 }
 
+if (mode == "zoomshot")
+{
+    // Not a test: photographs the calendar zoomed in with the nav hidden, for
+    // eyeballing readability work on a real device. Leaves the app as found.
+    await WaitFor("document.querySelector('h1')", "app rendered");
+    await Click("a[href=\"calendar\"]");
+    await WaitFor("document.querySelector('.cal-grid')", "calendar rendered");
+    await Click(".nav-collapse");
+    await WaitFor("getComputedStyle(document.querySelector('.sidebar')).display === 'none'", "nav hidden");
+    // Zoom first, then aim: placing the viewport at the final scale keeps this
+    // idempotent — a previous run may have left the calendar already zoomed,
+    // in which case the slider event is a no-op and no scroll correction runs.
+    await cdp.EvalAsync(
+        "(() => { const s = document.querySelector('.cal-zoom-slider');" +
+        " s.value = '96'; s.dispatchEvent(new Event('input', { bubbles: true })); })()");
+    await WaitFor("Math.abs(document.querySelector('.cal-grid').getBoundingClientRect().height - 24 * 96) < 3", "zoomed");
+    await Task.Delay(300);
+    await cdp.EvalAsync(
+        "(() => { const sc = document.querySelector('.cal-scroll');" +
+        " sc.scrollTop = (new Date().getHours() + 0.5) * 96 - sc.clientHeight / 2; })()");
+    await Task.Delay(400);
+    await Shot("droid-zoom.png");
+    await Click(".nav-collapse");
+    Console.WriteLine("zoomshot captured");
+    return 0;
+}
+
 // ---- suite ----
 
 await Step("app: dashboard is the root page", async () =>
@@ -274,6 +301,28 @@ await Step("presets: the picker fills the add dialog", async () =>
     // Cancel: this step is about the picker, not about adding another task.
     await Click(".modal-actions button[type=button]");
     await WaitFor("!document.querySelector('.modal-panel')", "modal closed");
+});
+
+await Step("nav: sidebar hides and returns", async () =>
+{
+    await Click(".nav-collapse");
+    await WaitFor("getComputedStyle(document.querySelector('.sidebar')).display === 'none'", "sidebar hidden");
+    await Click(".nav-collapse");
+    await WaitFor("getComputedStyle(document.querySelector('.sidebar')).display !== 'none'", "sidebar visible");
+});
+
+await Step("calendar: zoom slider rescales the grid", async () =>
+{
+    await NavTo("calendar", "Calendar");
+    await WaitFor("document.querySelector('.cal-grid')?.getBoundingClientRect().height > 1100", "grid at default scale");
+    await cdp.EvalAsync(
+        "(() => { const s = document.querySelector('.cal-zoom-slider');" +
+        " s.value = '96'; s.dispatchEvent(new Event('input', { bubbles: true })); })()");
+    await WaitFor("Math.abs(document.querySelector('.cal-grid').getBoundingClientRect().height - 24 * 96) < 3", "grid rescaled to 96px hours");
+    await cdp.EvalAsync(
+        "(() => { const s = document.querySelector('.cal-zoom-slider');" +
+        " s.value = '48'; s.dispatchEvent(new Event('input', { bubbles: true })); })()");
+    await WaitFor("Math.abs(document.querySelector('.cal-grid').getBoundingClientRect().height - 24 * 48) < 3", "grid back at default");
 });
 
 await Step("blocked: add recurring Sleep period clear of now", async () =>

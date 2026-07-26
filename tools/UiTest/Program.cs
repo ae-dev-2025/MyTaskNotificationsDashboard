@@ -661,11 +661,29 @@ if (mode == "realism")
         await AddTask("Second job", null, null, "30");
     });
 
+    // A slot the visible week doesn't hold may be on next week's grid — a
+    // late-evening run pushes the second task past midnight, and on Sundays
+    // midnight is the week boundary. Same trap as the not-before fixture.
+    async Task<(int Start, int End)> SlotTimesAnyWeek(string exactTitle)
+    {
+        var times = await SlotTimes(exactTitle);
+        if (times is null)
+        {
+            await page.GetByRole(AriaRole.Button, new() { Name = "Next week ›" }).ClickAsync();
+            await page.WaitForTimeoutAsync(300);
+            times = await SlotTimes(exactTitle);
+            await page.GetByRole(AriaRole.Button, new() { Name = "Today", Exact = true }).ClickAsync();
+            await page.WaitForTimeoutAsync(300);
+        }
+
+        return times ?? throw new Exception($"{exactTitle} slot missing from this week and the next");
+    }
+
     await Step("breaks: 15-minute gap between consecutive tasks", async () =>
     {
         await NavTo("Calendar", "Calendar");
-        var first = await SlotTimes("First job") ?? throw new Exception("First job slot missing");
-        var second = await SlotTimes("Second job") ?? throw new Exception("Second job slot missing");
+        var first = await SlotTimesAnyWeek("First job");
+        var second = await SlotTimesAnyWeek("Second job");
         var gap = GapMinutes(first.End, second.Start);
         if (gap < 15) throw new Exception($"gap was {gap} min, expected >= 15");
     });
@@ -674,8 +692,8 @@ if (mode == "realism")
     {
         await SetBreak("30");
         await NavTo("Calendar", "Calendar");
-        var first = await SlotTimes("First job") ?? throw new Exception("First job slot missing");
-        var second = await SlotTimes("Second job") ?? throw new Exception("Second job slot missing");
+        var first = await SlotTimesAnyWeek("First job");
+        var second = await SlotTimesAnyWeek("Second job");
         var gap = GapMinutes(first.End, second.Start);
         if (gap < 30) throw new Exception($"gap was {gap} min after setting 30");
     });
@@ -723,6 +741,9 @@ if (mode == "realism")
         if (thisWeek == "false,false")
         {
             await page.GetByRole(AriaRole.Button, new() { Name = "Next week ›" }).ClickAsync();
+            // Let the re-render land before reading — with a fuller task list
+            // the immediate evaluate raced the render and read the old grid.
+            await page.WaitForTimeoutAsync(400);
             var nextWeek = await Placement();
             await page.GetByRole(AriaRole.Button, new() { Name = "Today", Exact = true }).ClickAsync();
 
@@ -987,6 +1008,31 @@ if (mode == "calendar")
     await Step("calendar: now line drawn on today", () =>
         Expect(page.Locator(".cal-now-line")).ToHaveCountAsync(1));
 
+    await Step("calendar: zoom slider rescales the grid", async () =>
+    {
+        async Task<double> GridHeight() =>
+            await page.EvalOnSelectorAsync<double>(".cal-grid", "el => el.getBoundingClientRect().height");
+
+        async Task SetZoom(string px) =>
+            await page.EvalOnSelectorAsync(".cal-zoom-slider",
+                $"el => {{ el.value = '{px}'; el.dispatchEvent(new Event('input', {{ bubbles: true }})); }}");
+
+        var before = await GridHeight();
+        await SetZoom("96");
+        await page.WaitForTimeoutAsync(300);
+        var after = await GridHeight();
+
+        // Restore the default before asserting: later steps (and other modes)
+        // do pixel maths that assumes the 48px scale.
+        await SetZoom("48");
+        await page.WaitForTimeoutAsync(300);
+
+        if (Math.Abs(before - 24 * 48) > 2 || Math.Abs(after - 24 * 96) > 2)
+        {
+            throw new Exception($"grid height before/after zoom = {before}/{after}; expected 1152/2304");
+        }
+    });
+
     // Scroll the grid so the slots planned from "now" are actually in frame.
     await page.EvalOnSelectorAsync(".cal-scroll",
         "el => { el.scrollTop = Math.max(0, (new Date().getHours() - 1.5) * 48); }");
@@ -1194,6 +1240,14 @@ await Step("cleanup: remove the not-before fixtures", async () =>
 
 await Step("footer: totals only the remaining estimate", () =>
     Expect(footer).ToContainTextAsync("1 task left"));
+
+await Step("nav: sidebar hides and returns", async () =>
+{
+    await page.GetByRole(AriaRole.Button, new() { Name = "Hide navigation", Exact = true }).ClickAsync();
+    await Expect(page.Locator(".sidebar")).ToBeHiddenAsync();
+    await page.GetByRole(AriaRole.Button, new() { Name = "Show navigation", Exact = true }).ClickAsync();
+    await Expect(page.Locator(".sidebar")).ToBeVisibleAsync();
+});
 await Shot("ui-04-final.png");
 
 Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");

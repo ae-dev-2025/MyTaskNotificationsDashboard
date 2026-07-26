@@ -94,6 +94,13 @@ added later by restoring their target frameworks in
   its own); and the dashboard shows a **capacity warning** when planned work
   can't finish before its deadlines or doesn't fit the horizon. Every change
   refreshes the plan on all open pages immediately
+- **Calendar zoom**: a vertical slider beside the week grid stretches or
+  compresses the hours, and taller blocks spend the extra room on their
+  titles — text wraps to as many whole lines as the block affords. Zooming
+  keeps the moment at the centre of the view where you left it
+- **Collapsible navigation**: a full-height handle on the sidebar's edge
+  hides it for a wider calendar and brings it back with one click, always
+  from the same spot
 - **Dark mode**: follows the device's light/dark setting by default, with a
   System → Light → Dark override in the sidebar, persisted across restarts.
   Forcing Dark is recommended for always-on AMOLED displays

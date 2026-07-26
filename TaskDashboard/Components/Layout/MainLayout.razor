@@ -2,10 +2,21 @@
 @inject DashboardService Dashboard
 @inject IJSRuntime JS
 
-<div class="page">
+<div class="page @(navHidden ? "nav-hidden" : null)">
     <div class="sidebar">
         <NavMenu />
     </div>
+
+    @* A full-height handle on the sidebar's edge, not a floating button: it
+       cannot overlap page content, and it stays in the same place whether the
+       sidebar is shown or hidden, so hide/show is two clicks on one spot. *@
+    <button type="button"
+            class="nav-collapse"
+            aria-label="@(navHidden ? "Show navigation" : "Hide navigation")"
+            title="@(navHidden ? "Show navigation" : "Hide navigation")"
+            @onclick="() => navHidden = !navHidden">
+        @(navHidden ? "›" : "‹")
+    </button>
 
     <main>
         <article class="content px-4">
@@ -15,6 +26,10 @@
 </div>
 
 @code {
+    // Session-only on purpose: a hidden nav that persists across launches
+    // would leave a first-time-back user wondering where the app went.
+    private bool navHidden;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)

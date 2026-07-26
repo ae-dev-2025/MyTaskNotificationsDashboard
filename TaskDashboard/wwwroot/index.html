@@ -32,6 +32,15 @@
                 }
             },
 
+            // After a container's content height changes by `factor` (calendar
+            // zoom), keeps the moment at the viewport's centre at the centre.
+            scaleScroll: function (element, factor) {
+                if (element) {
+                    var mid = element.scrollTop + element.clientHeight / 2;
+                    element.scrollTop = mid * factor - element.clientHeight / 2;
+                }
+            },
+
             // Applies "system" | "light" | "dark". Bootstrap 5.3 switches on
             // the data-bs-theme attribute; "system" resolves via the OS
             // preference and follows it live.

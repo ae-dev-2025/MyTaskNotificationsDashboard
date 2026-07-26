@@ -16,7 +16,21 @@
 
 @{ var week = BuildWeek(); }
 
-<div class="cal-scroll" @ref="scrollArea">
+<div class="cal-body">
+    @* Vertical zoom: taller hours give every block more room for its text.
+       Rendered outside the scroll container so it never scrolls away. *@
+    <div class="cal-zoom" title="Zoom: taller hours give tasks more room">
+        <span class="cal-zoom-cap" aria-hidden="true">+</span>
+        <input type="range"
+               class="cal-zoom-slider"
+               min="@MinHourPx" max="@MaxHourPx" step="8"
+               value="@HourPx"
+               aria-label="Zoom calendar"
+               @oninput="OnZoomAsync" />
+        <span class="cal-zoom-cap" aria-hidden="true">−</span>
+    </div>
+
+<div class="cal-scroll" @ref="scrollArea" style="--hour-px:@(HourPx)px">
     <div class="cal-header">
         <div class="cal-gutter-spacer"></div>
         @foreach (var day in week.Days)
@@ -50,7 +64,7 @@
                 @foreach (var block in day.Blocks)
                 {
                     <div class="@block.CssClass"
-                         style="top:@(block.Top)px;height:@(block.Height)px;@block.LaneStyle"
+                         style="top:@(block.Top)px;height:@(block.Height)px;--title-lines:@block.TitleLines;@block.LaneStyle"
                          title="@block.Tooltip">
                         <span class="cal-block-head">
                             <span class="cal-block-time">@block.TimeText</span>
@@ -85,9 +99,20 @@
         <div class="cal-empty">Nothing scheduled this week.</div>
     }
 </div>
+</div>
 
 @code {
-    private const double HourPx = 48;
+    /// <summary>Vertical scale: pixels per hour, driven by the zoom slider.
+    /// Everything the grid draws — labels, blocks, markers, the now-line —
+    /// derives from this one number, so zooming is just re-rendering with a
+    /// different value. The default matches the old fixed 48px scale that the
+    /// UI tests' pixel maths assume, so every suite still opens on the layout
+    /// it knows.</summary>
+    private double HourPx = DefaultHourPx;
+
+    private const double DefaultHourPx = 48;
+    private const double MinHourPx = 32;
+    private const double MaxHourPx = 128;
 
     /// <summary>Readability floor for a rendered block: enough for one line of
     /// the 0.72rem block label. Anything shorter is inflated, so pixel maths
@@ -100,6 +125,12 @@
     /// and ellipsise instead. One line of 0.75rem at line-height 1.25 plus the
     /// block's vertical padding is ~18px, so two need ~34.</summary>
     private const double TwoLinePx = 34;
+
+    /// <summary>One rendered text line: 0.75rem at line-height 1.25.</summary>
+    private const double LinePx = 15;
+
+    /// <summary>The block's vertical padding (0.1rem top and bottom).</summary>
+    private const double BlockPadPx = 4;
     private static readonly TimeSpan PlanHorizon = TimeSpan.FromDays(14);
 
     private DateTime weekStart;
@@ -108,7 +139,7 @@
 
     private static DateTime Today => DateTime.Today;
 
-    private static double NowOffsetPx => DateTime.Now.TimeOfDay.TotalHours * HourPx;
+    private double NowOffsetPx => DateTime.Now.TimeOfDay.TotalHours * HourPx;
 
     private bool IsCurrentWeek => weekStart == StartOfWeek(Today);
 
@@ -136,6 +167,15 @@
         /// title clipped out of view entirely, which is what short blocks did.</summary>
         public bool Compact => Height < TwoLinePx;
 
+        /// <summary>How many whole lines the title may wrap to: the lines that
+        /// fit under the head row, never fewer than one. Computed here rather
+        /// than left to CSS line-clamping against the box, which is what used
+        /// to truncate titles unpredictably — a clamp sized to the space that
+        /// actually exists is deterministic. This is what makes the zoom
+        /// slider pay off: taller blocks turn their extra height into visible
+        /// text instead of padding.</summary>
+        public int TitleLines => Math.Max(1, (int)((Height - BlockPadPx - LinePx) / LinePx));
+
         /// <summary>The block's full class list. Built here rather than inline in
         /// the markup: Razor cannot parse a quoted string inside an attribute
         /// that is itself quoted.</summary>
@@ -155,6 +195,11 @@
 
     private void OnDataChanged() => _ = InvokeAsync(StateHasChanged);
 
+    // Accumulates zoom changes made since the last render, so the scroll
+    // correction runs after the grid has actually been re-laid-out at the new
+    // scale — correcting before the render would measure the old heights.
+    private double? pendingZoomFactor;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -162,6 +207,33 @@
             // Drop the viewport at 07:00 so the working day is in view.
             await JS.InvokeVoidAsync("taskDashboard.scrollTo", scrollArea, 7 * HourPx);
         }
+
+        if (pendingZoomFactor is { } factor)
+        {
+            pendingZoomFactor = null;
+            await JS.InvokeVoidAsync("taskDashboard.scaleScroll", scrollArea, factor);
+        }
+    }
+
+    /// <summary>Applies the slider. The moment at the viewport's centre stays
+    /// at the centre — zooming stretches the grid around what the user is
+    /// looking at instead of teleporting them to a different hour.</summary>
+    private Task OnZoomAsync(ChangeEventArgs e)
+    {
+        if (!double.TryParse(e.Value?.ToString(), out var px))
+        {
+            return Task.CompletedTask;
+        }
+
+        px = Math.Clamp(px, MinHourPx, MaxHourPx);
+        if (px == HourPx)
+        {
+            return Task.CompletedTask;
+        }
+
+        pendingZoomFactor = (pendingZoomFactor ?? 1) * (px / HourPx);
+        HourPx = px;
+        return Task.CompletedTask;
     }
 
     private async Task TickAsync()
@@ -378,7 +450,7 @@
         return markers;
     }
 
-    private static (double Top, double Height) Clip(
+    private (double Top, double Height) Clip(
         DateTimeOffset start, DateTimeOffset end, DateTimeOffset dayStart, DateTimeOffset dayEnd)
     {
         var visibleStart = start < dayStart ? dayStart : start;

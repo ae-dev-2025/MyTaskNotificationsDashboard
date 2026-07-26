@@ -13,6 +13,16 @@ main {
     border-right: 1px solid var(--border);
 }
 
+.page.nav-hidden .sidebar {
+    display: none;
+}
+
+/* Hidden on the narrow layout: the sidebar is a top bar there with its own
+   hamburger, so a second collapse control would just compete with it. */
+.nav-collapse {
+    display: none;
+}
+
 /* MainLayout renders no top bar — the stock template's `.top-row` rules (and
    the auth variants that came with them) styled an element this app removed,
    so they are gone rather than tokenised. NavMenu keeps its own `.top-row`
@@ -28,6 +38,27 @@ main {
         height: 100vh;
         position: sticky;
         top: 0;
+    }
+
+    .nav-collapse {
+        display: block;
+        flex: none;
+        width: 1rem;
+        height: 100vh;
+        position: sticky;
+        top: 0;
+        padding: 0;
+        border: none;
+        border-right: 1px solid var(--border);
+        background: var(--chrome);
+        color: var(--text-faint);
+        font-size: 0.75rem;
+        cursor: pointer;
+    }
+
+    .nav-collapse:hover {
+        background: var(--hairline);
+        color: var(--text);
     }
 
     article {
