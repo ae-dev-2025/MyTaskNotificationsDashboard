@@ -68,6 +68,12 @@ added later by restoring their target frameworks in
   which the calendar's history layer draws instead of guessing from the
   estimate
 - Add, edit, and delete tasks — double-click a task or press **Edit** to change it inline
+- **Presets** for the tasks you add over and over: a saved title, priority and
+  estimate. The add dialog searches them as you type — choose one and the
+  fields fill, with Enter applying the top match. A preset deliberately stores
+  **no dates**, because when a task is due is the part that differs every time
+  you add it. Create them on the Presets page, or press **Save as preset** in
+  a task's edit dialog to capture one you have already typed
 - Each task carries a **deadline**, a **priority** (Low / Normal / High / Urgent), and an
   **estimated time to complete**; all three are optional except the title
 - Overdue tasks are flagged, and the footer totals the estimated time still outstanding
@@ -151,6 +157,8 @@ Requires the .NET 10 SDK with the `maui-windows` and `android` workloads
 | `TaskDashboard/Components/Pages/CalendarPage.razor` | The week-timeline calendar |
 | `design-system/` | Self-contained component previews, published to Claude Design |
 | `TaskDashboard/Components/Pages/BlockedTimePage.razor` | Blocked-time management |
+| `TaskDashboard/Models/TaskPreset.cs` | A saved title, priority and estimate — no dates by design |
+| `TaskDashboard/Components/Pages/PresetsPage.razor` | Preset management, at `/presets` |
 | `TaskDashboard/Components/Pages/Notifications.razor` | Reminder settings: on/off, lead time, always-on current task |
 | `TaskDashboard/Services/NotificationScheduling.cs` | Decides which reminders to fire and when — pure, shared by both platforms |
 | `TaskDashboard/Services/NotificationCoordinator.cs` | Keeps delivered notifications in step with the data and the clock |

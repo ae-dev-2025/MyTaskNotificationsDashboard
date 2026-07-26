@@ -1,0 +1,83 @@
+@* Add/edit dialog for a preset. Mirrors the TaskModal pattern. *@
+
+<div class="modal-backdrop-area" @onclick="() => OnCancel.InvokeAsync()">
+    <div class="modal-panel"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="preset-modal-title"
+         @onclick:stopPropagation
+         @onkeydown="HandleKeyAsync">
+        <h2 id="preset-modal-title">@Title</h2>
+
+        <EditForm Model="Form" OnValidSubmit="() => OnSave.InvokeAsync()">
+            <DataAnnotationsValidator />
+
+            <div class="preset-fields">
+                <div class="field">
+                    <label for="preset-title">Title</label>
+                    <InputText id="preset-title"
+                               @ref="titleInput"
+                               @bind-Value="Form.Title"
+                               class="form-control"
+                               placeholder="e.g. Daily standup" />
+                    <small class="field-hint">The title each task gets when you pick this preset</small>
+                </div>
+
+                <div class="field">
+                    <label for="preset-priority">Priority</label>
+                    <InputSelect id="preset-priority" @bind-Value="Form.Priority" class="form-select">
+                        @foreach (var priority in Enum.GetValues<TaskPriority>())
+                        {
+                            <option value="@priority">@priority</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="field">
+                    <label for="preset-estimate">Estimate (mins)</label>
+                    <InputNumber id="preset-estimate"
+                                 @bind-Value="Form.EstimatedMinutes"
+                                 class="form-control"
+                                 placeholder="e.g. 30"
+                                 min="1" />
+                </div>
+            </div>
+
+            <ValidationSummary />
+
+            <div class="modal-actions">
+                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="() => OnCancel.InvokeAsync()">
+                    Cancel
+                </button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public PresetForm Form { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private InputText? titleInput;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && titleInput?.Element is { } element)
+        {
+            await element.FocusAsync();
+        }
+    }
+
+    private Task HandleKeyAsync(KeyboardEventArgs e) =>
+        e.Key == "Escape" ? OnCancel.InvokeAsync() : Task.CompletedTask;
+}

@@ -1,0 +1,118 @@
+@page "/presets"
+@inject DashboardService Dashboard
+
+<h1>Presets</h1>
+
+<p class="preset-intro">
+    Saved titles, priorities and estimates for the tasks you add over and over.
+    Pick one when adding a task instead of typing it again.
+</p>
+
+<div class="preset-toolbar">
+    <button type="button" class="btn btn-primary" @onclick="BeginAdd">Add preset</button>
+</div>
+
+@if (Dashboard.Presets.Count == 0)
+{
+    <p class="preset-empty">
+        No presets yet. Add one here, or save a task as a preset from its edit dialog.
+    </p>
+}
+else
+{
+    <ul class="preset-list">
+        @foreach (var preset in Dashboard.Presets)
+        {
+            <li class="preset-item" @key="preset.Id">
+                <div class="preset-body">
+                    <span class="preset-title">@preset.Title</span>
+
+                    <span class="preset-meta">
+                        <span class="badge priority priority-@preset.Priority.ToString().ToLowerInvariant()">
+                            @preset.Priority
+                        </span>
+
+                        @if (preset.EstimatedTime is { } estimate)
+                        {
+                            <span class="meta estimate" title="Estimated time to complete">
+                                ~@FormatDuration(estimate)
+                            </span>
+                        }
+                    </span>
+                </div>
+
+                <button type="button"
+                        class="btn btn-sm btn-outline-secondary"
+                        aria-label="@($"Edit \"{preset.Title}\"")"
+                        @onclick="() => BeginEdit(preset)">
+                    Edit
+                </button>
+
+                <button type="button"
+                        class="btn btn-sm btn-outline-danger"
+                        aria-label="@($"Delete \"{preset.Title}\"")"
+                        @onclick="() => Dashboard.DeletePresetAsync(preset.Id)">
+                    Delete
+                </button>
+            </li>
+        }
+    </ul>
+}
+
+@if (modalOpen)
+{
+    <PresetModal Title="@(editingId is null ? "Add preset" : "Edit preset")"
+                 Form="form"
+                 OnSave="SaveAsync"
+                 OnCancel="() => modalOpen = false" />
+}
+
+@code {
+    private readonly PresetForm form = new();
+
+    private bool modalOpen;
+    private Guid? editingId;
+
+    protected override Task OnInitializedAsync() => Dashboard.LoadAsync();
+
+    private void BeginAdd()
+    {
+        form.Reset();
+        editingId = null;
+        modalOpen = true;
+    }
+
+    private void BeginEdit(TaskPreset preset)
+    {
+        form.CopyFrom(PresetForm.From(preset));
+        editingId = preset.Id;
+        modalOpen = true;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (editingId is { } id)
+        {
+            await Dashboard.UpdatePresetAsync(id, form);
+        }
+        else
+        {
+            await Dashboard.AddPresetAsync(form);
+        }
+
+        modalOpen = false;
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        var hours = (int)duration.TotalHours;
+        var minutes = duration.Minutes;
+
+        if (hours > 0)
+        {
+            return minutes > 0 ? $"{hours}h {minutes}m" : $"{hours}h";
+        }
+
+        return $"{minutes}m";
+    }
+}

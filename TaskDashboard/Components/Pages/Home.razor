@@ -129,6 +129,9 @@ else
 {
     <TaskModal Title="@(editingId is null ? "Add task" : "Edit task")"
                Form="form"
+               ShowPresetPicker="editingId is null"
+               ShowSaveAsPreset="editingId is not null"
+               OnSaveAsPreset="SaveAsPresetAsync"
                ShowSplit="CanSplitEditing"
                OnSplit="SplitAsync"
                OnSave="SaveAsync"
@@ -193,6 +196,15 @@ else
             await Todos.AddAsync(form.Title, form.Deadline, form.Priority, form.EstimatedTime, form.NotBefore);
         }
 
+        modalOpen = false;
+    }
+
+    /// <summary>Saves what is currently in the edit dialog as a preset, then
+    /// closes it. The task itself is left as it was — the button captures the
+    /// shape for next time, it does not double as Save.</summary>
+    private async Task SaveAsPresetAsync()
+    {
+        await Todos.AddPresetAsync(PresetForm.FromTask(form));
         modalOpen = false;
     }
 

@@ -10,6 +10,51 @@
          @onkeydown="HandleKeyAsync">
         <h2 id="task-modal-title">@Title</h2>
 
+        @* Deliberately outside the EditForm below: a bare input inside a form
+           submits it on Enter, which would create the task mid-search. Out here,
+           Enter is ours to use — it applies the top match. *@
+        @if (ShowPresetPicker && Dashboard.Presets.Count > 0)
+        {
+            <div class="preset-picker">
+                <label for="preset-search">Start from a preset</label>
+                <input id="preset-search"
+                       type="search"
+                       class="form-control preset-search"
+                       placeholder="Search presets"
+                       autocomplete="off"
+                       value="@presetQuery"
+                       @oninput="e => presetQuery = e.Value?.ToString() ?? string.Empty"
+                       @onkeydown="HandlePresetKeyAsync" />
+
+                @if (PresetMatches.Count == 0)
+                {
+                    <p class="preset-none">No preset matches that.</p>
+                }
+                else
+                {
+                    <ul class="preset-options">
+                        @foreach (var preset in PresetMatches)
+                        {
+                            <li @key="preset.Id">
+                                <button type="button"
+                                        class="preset-option"
+                                        @onclick="() => ApplyPreset(preset)">
+                                    <span class="preset-option-title">@preset.Title</span>
+                                    <span class="badge priority priority-@preset.Priority.ToString().ToLowerInvariant()">
+                                        @preset.Priority
+                                    </span>
+                                    @if (preset.EstimatedTime is { } estimate)
+                                    {
+                                        <span class="preset-option-estimate">~@FormatDuration(estimate)</span>
+                                    }
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
+
         <EditForm Model="Form" OnValidSubmit="() => OnSave.InvokeAsync()">
             <DataAnnotationsValidator />
 
@@ -23,6 +68,20 @@
                     Cancel
                 </button>
             </div>
+
+            @if (ShowSaveAsPreset)
+            {
+                <div class="preset-save-row">
+                    <button type="button"
+                            class="btn btn-sm btn-outline-primary btn-save-preset"
+                            @onclick="() => OnSaveAsPreset.InvokeAsync()">
+                        Save as preset
+                    </button>
+                    <small class="preset-save-hint">
+                        Keeps the title, priority and estimate for next time. Dates aren't saved.
+                    </small>
+                </div>
+            }
 
             @if (ShowSplit)
             {
@@ -44,6 +103,8 @@
     </div>
 </div>
 
+@inject DashboardService Dashboard
+
 @code {
     [Parameter, EditorRequired]
     public string Title { get; set; } = string.Empty;
@@ -53,6 +114,17 @@
 
     [Parameter]
     public bool ShowSplit { get; set; }
+
+    /// <summary>Offers the saved presets above the fields. Add flow only —
+    /// there is nothing to start from when editing a task that exists.</summary>
+    [Parameter]
+    public bool ShowPresetPicker { get; set; }
+
+    [Parameter]
+    public bool ShowSaveAsPreset { get; set; }
+
+    [Parameter]
+    public EventCallback OnSaveAsPreset { get; set; }
 
     [Parameter]
     public EventCallback<int> OnSplit { get; set; }
@@ -65,7 +137,49 @@
 
     private int splitParts = 2;
 
+    private string presetQuery = string.Empty;
+
     private TaskFields? fields;
+
+    // Matching lives in DashboardService so the picker and any other caller
+    // cannot disagree about what "matches" means.
+    private IReadOnlyList<TaskPreset> PresetMatches => Dashboard.SearchPresets(presetQuery);
+
+    /// <summary>Fills the form from a preset. Deadline and not-before are left
+    /// alone — a preset has no dates, and clearing what the user already typed
+    /// would be a surprise.</summary>
+    private void ApplyPreset(TaskPreset preset)
+    {
+        Form.Title = preset.Title;
+        Form.Priority = preset.Priority;
+        Form.EstimatedMinutes = preset.EstimatedTime is { } estimate
+            ? (int)Math.Round(estimate.TotalMinutes)
+            : null;
+    }
+
+    private Task HandlePresetKeyAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && PresetMatches.Count > 0)
+        {
+            ApplyPreset(PresetMatches[0]);
+            return Task.CompletedTask;
+        }
+
+        return HandleKeyAsync(e);
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        var hours = (int)duration.TotalHours;
+        var minutes = duration.Minutes;
+
+        if (hours > 0)
+        {
+            return minutes > 0 ? $"{hours}h {minutes}m" : $"{hours}h";
+        }
+
+        return $"{minutes}m";
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

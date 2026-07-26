@@ -13,6 +13,11 @@ public class DashboardData
 
     public List<BlockedPeriod> BlockedPeriods { get; set; } = [];
 
+    /// <summary>Saved task defaults, offered when adding a task. A new optional
+    /// list needs no version bump — absent in an older file, it deserializes to
+    /// the empty default.</summary>
+    public List<TaskPreset> Presets { get; set; } = [];
+
     /// <summary>Mandatory gap the planner leaves between tasks, in minutes.
     /// Older files lack the property and fall back to the default.</summary>
     public int BreakMinutes { get; set; } = 15;
