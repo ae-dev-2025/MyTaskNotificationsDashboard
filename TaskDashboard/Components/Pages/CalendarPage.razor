@@ -7,17 +7,38 @@
 <p class="cal-subtitle">@WeekRangeText</p>
 
 <div class="cal-toolbar">
-    <div class="btn-group" role="group" aria-label="Week navigation">
-        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => ShiftWeek(-1)">‹ Previous week</button>
-        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="GoToday" disabled="@IsCurrentWeek">Today</button>
-        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => ShiftWeek(1)">Next week ›</button>
+    <div class="btn-group" role="group" aria-label="Calendar navigation">
+        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => Shift(-1)">@PrevLabel</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="GoToday" disabled="@IsOnToday">Today</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => Shift(1)">@NextLabel</button>
+    </div>
+
+    <div class="btn-group" role="group" aria-label="Calendar view">
+        <button type="button"
+                class="btn btn-sm cal-view-day @(dayCount == 1 ? "btn-secondary" : "btn-outline-secondary")"
+                aria-pressed="@(dayCount == 1)"
+                @onclick="() => SetView(1)">
+            Day
+        </button>
+        <button type="button"
+                class="btn btn-sm cal-view-3day @(dayCount == 3 ? "btn-secondary" : "btn-outline-secondary")"
+                aria-pressed="@(dayCount == 3)"
+                @onclick="() => SetView(3)">
+            3 days
+        </button>
+        <button type="button"
+                class="btn btn-sm cal-view-week @(dayCount == 7 ? "btn-secondary" : "btn-outline-secondary")"
+                aria-pressed="@(dayCount == 7)"
+                @onclick="() => SetView(7)">
+            Week
+        </button>
     </div>
 </div>
 
 @{ var week = BuildWeek(); }
 
 <div class="cal-body">
-<div class="cal-scroll" @ref="scrollArea" style="--hour-px:@(HourPx)px">
+<div class="cal-scroll" @ref="scrollArea" style="--hour-px:@(HourPx)px;--day-count:@dayCount">
     <div class="cal-header">
         <div class="cal-gutter-spacer"></div>
         @foreach (var day in week.Days)
@@ -39,7 +60,7 @@
                belongs with. It used to be a pill on the line itself, which sat
                on top of whatever block the line crossed and covered exactly the
                row carrying that block's time, late tag and title. *@
-            @if (IsCurrentWeek)
+            @if (TodayVisible)
             {
                 <div class="cal-now-label" style="top:@(NowOffsetPx)px">@DateTime.Now.ToString("HH:mm")</div>
             }
@@ -83,7 +104,7 @@
 
     @if (week.Empty)
     {
-        <div class="cal-empty">Nothing scheduled this week.</div>
+        <div class="cal-empty">Nothing scheduled in view.</div>
     }
 </div>
 
@@ -134,7 +155,12 @@
     private const double BlockPadPx = 4;
     private static readonly TimeSpan PlanHorizon = TimeSpan.FromDays(14);
 
-    private DateTime weekStart;
+    // The visible span: viewStart plus dayCount columns. Week view anchors to
+    // Monday; day and 3-day views anchor to whatever day the user is on, so
+    // "Today" means "first column is today" there rather than "this week".
+    private DateTime viewStart;
+    private int dayCount = 7;
+
     private ElementReference scrollArea;
     private readonly PeriodicTimer clock = new(TimeSpan.FromSeconds(60));
 
@@ -142,10 +168,24 @@
 
     private double NowOffsetPx => DateTime.Now.TimeOfDay.TotalHours * HourPx;
 
-    private bool IsCurrentWeek => weekStart == StartOfWeek(Today);
+    private bool IsOnToday => dayCount == 7
+        ? viewStart == StartOfWeek(Today)
+        : viewStart == Today;
 
-    private string WeekRangeText =>
-        $"{weekStart:d MMM} – {weekStart.AddDays(6):d MMM yyyy}";
+    /// <summary>Whether today's column is in the visible span — the gutter's
+    /// now-label follows this, not <see cref="IsOnToday"/>: a 3-day view that
+    /// started yesterday still shows today and deserves the marker.</summary>
+    private bool TodayVisible => Today >= viewStart && Today < viewStart.AddDays(dayCount);
+
+    // Week view keeps the exact labels the UI suites click; the narrower views
+    // shift by their own span, so "week" would be wrong there.
+    private string PrevLabel => dayCount == 7 ? "‹ Previous week" : "‹ Previous";
+
+    private string NextLabel => dayCount == 7 ? "Next week ›" : "Next ›";
+
+    private string WeekRangeText => dayCount == 1
+        ? $"{viewStart:ddd d MMM yyyy}"
+        : $"{viewStart:d MMM} – {viewStart.AddDays(dayCount - 1):d MMM yyyy}";
 
     /// <summary>A rendered column entry. <paramref name="Lane"/> and
     /// <paramref name="LaneCount"/> come from <see cref="AssignLanes"/>; blocked
@@ -188,7 +228,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        weekStart = StartOfWeek(Today);
+        viewStart = StartOfWeek(Today);
         await Todos.LoadAsync();
         Todos.Changed += OnDataChanged;
         _ = TickAsync();
@@ -264,11 +304,29 @@
         return date.AddDays(-diff);
     }
 
-    private void ShiftWeek(int direction) => weekStart = weekStart.AddDays(direction * 7);
+    private void Shift(int direction) => viewStart = viewStart.AddDays(direction * dayCount);
 
-    private void GoToday() => weekStart = StartOfWeek(Today);
+    private void GoToday() => viewStart = dayCount == 7 ? StartOfWeek(Today) : Today;
 
-    /// <summary>Computes the whole visible week in one pass: one planner run,
+    /// <summary>Switches between day, 3-day and week views. Whatever was on
+    /// screen stays reachable: growing to the week snaps to the Monday of the
+    /// span being viewed; narrowing anchors on today when it is in the current
+    /// span, else on the span's first day.</summary>
+    private void SetView(int days)
+    {
+        if (days == dayCount)
+        {
+            return;
+        }
+
+        var todayVisible = Today >= viewStart && Today < viewStart.AddDays(dayCount);
+        dayCount = days;
+        viewStart = days == 7
+            ? StartOfWeek(viewStart)
+            : todayVisible ? Today : viewStart;
+    }
+
+    /// <summary>Computes the whole visible span in one pass: one planner run,
     /// then per-day clipping.</summary>
     private WeekView BuildWeek()
     {
@@ -276,10 +334,10 @@
         var busy = BlockedTime.Expand(Todos.BlockedPeriods, now, now + PlanHorizon);
         var plan = Planner.Plan(Todos.Items, busy, now, PlanHorizon, Todos.BreakBetweenTasks);
 
-        var days = new List<DayView>(7);
-        for (var d = 0; d < 7; d++)
+        var days = new List<DayView>(dayCount);
+        for (var d = 0; d < dayCount; d++)
         {
-            var date = weekStart.AddDays(d);
+            var date = viewStart.AddDays(d);
             days.Add(new DayView(
                 date,
                 date == Today,

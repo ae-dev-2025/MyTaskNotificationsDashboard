@@ -1037,6 +1037,22 @@ if (mode == "calendar")
     await Step("calendar: now line drawn on today", () =>
         Expect(page.Locator(".cal-now-line")).ToHaveCountAsync(1));
 
+    await Step("calendar: day and 3-day views narrow the span", async () =>
+    {
+        await page.Locator(".cal-view-day").ClickAsync();
+        await Expect(page.Locator(".cal-day")).ToHaveCountAsync(1);
+        await Expect(page.Locator(".cal-day.today")).ToHaveCountAsync(1);
+
+        await page.Locator(".cal-view-3day").ClickAsync();
+        await Expect(page.Locator(".cal-day")).ToHaveCountAsync(3);
+        // Narrow views anchor on today, so its column leads the span.
+        await Expect(page.Locator(".cal-day").First).ToHaveClassAsync(new Regex("today"));
+
+        await page.Locator(".cal-view-week").ClickAsync();
+        await Expect(page.Locator(".cal-day")).ToHaveCountAsync(7);
+        await Expect(page.Locator(".cal-day.today")).ToHaveCountAsync(1);
+    });
+
     await Step("calendar: zoom slider rescales the grid", async () =>
     {
         async Task<double> GridHeight() =>
