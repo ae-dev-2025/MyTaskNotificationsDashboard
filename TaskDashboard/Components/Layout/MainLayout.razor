@@ -2,10 +2,21 @@
 @inject DashboardService Dashboard
 @inject IJSRuntime JS
 
-<div class="page">
+<div class="page @(navHidden ? (Dashboard.CollapseNavToIcons ? "nav-icons" : "nav-hidden") : null)">
     <div class="sidebar">
         <NavMenu />
     </div>
+
+    @* A full-height handle on the sidebar's edge, not a floating button: it
+       cannot overlap page content, and it stays in the same place whether the
+       sidebar is shown or hidden, so hide/show is two clicks on one spot. *@
+    <button type="button"
+            class="nav-collapse"
+            aria-label="@(navHidden ? "Show navigation" : "Hide navigation")"
+            title="@(navHidden ? "Show navigation" : "Hide navigation")"
+            @onclick="() => navHidden = !navHidden">
+        <span class="nav-collapse-grip" aria-hidden="true">@(navHidden ? "›" : "‹")</span>
+    </button>
 
     <main>
         <article class="content px-4">
@@ -14,7 +25,23 @@
     </main>
 </div>
 
+@implements IDisposable
+
 @code {
+    // Session-only on purpose: a hidden nav that persists across launches
+    // would leave a first-time-back user wondering where the app went. What
+    // "collapsed" looks like — gone, or an icon rail — is the persisted
+    // CollapseNavToIcons setting.
+    private bool navHidden;
+
+    protected override void OnInitialized() => Dashboard.Changed += OnDataChanged;
+
+    // Re-render when settings change elsewhere: flipping the icons toggle on
+    // the Settings page must restyle an already-collapsed sidebar immediately.
+    private void OnDataChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Dashboard.Changed -= OnDataChanged;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)

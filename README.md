@@ -101,7 +101,11 @@ added later by restoring their target frameworks in
 - **Calendar zoom**: a vertical slider beside the grid (on the right)
   stretches or compresses the hours, and taller blocks spend the extra room
   on their titles — text wraps to as many whole lines as the block affords.
-  Zooming keeps the moment at the centre of the view where you left it
+  Zooming keeps the moment at the centre of the view where you left it, and
+  the slider can be hidden from the Settings page
+- **Collapsible navigation**: a full-height handle on the sidebar's edge
+  hides it for a wider calendar and brings it back with one click, always
+  from the same spot
 - **Dark mode**: follows the device's light/dark setting by default, with a
   System → Light → Dark override in the sidebar, persisted across restarts.
   Forcing Dark is recommended for always-on AMOLED displays
@@ -127,6 +131,12 @@ added later by restoring their target frameworks in
 
 ## Roadmap
 
+- **Quick-add parsing**: type "dentist tue 15:00 30m high" and get the task —
+  a deterministic parser, no model, fully testable
+- **Local AI assistant** (after quick-add): an optional, downloaded on-device
+  model for conversational task management ("push everything low-priority to
+  next week"), schema-constrained so it can only emit actions the app already
+  has, with the deterministic planner staying in charge of scheduling
 - **Backend + sync** so tasks and notification state follow you across devices
 - **iOS / Mac Catalyst** targets once a Mac build host is available
 
@@ -167,6 +177,7 @@ Requires the .NET 10 SDK with the `maui-windows` and `android` workloads
 | `TaskDashboard/Components/Pages/BlockedTimePage.razor` | Blocked-time management |
 | `TaskDashboard/Models/TaskPreset.cs` | A saved title, priority and estimate — no dates by design |
 | `TaskDashboard/Components/Pages/PresetsPage.razor` | Preset management, at `/presets` |
+| `TaskDashboard/Components/Pages/SettingsPage.razor` | Display preferences, at `/settings` |
 | `TaskDashboard/Components/Pages/Notifications.razor` | Reminder settings: on/off, lead time, always-on current task |
 | `TaskDashboard/Services/NotificationScheduling.cs` | Decides which reminders to fire and when — pure, shared by both platforms |
 | `TaskDashboard/Services/NotificationCoordinator.cs` | Keeps delivered notifications in step with the data and the clock |

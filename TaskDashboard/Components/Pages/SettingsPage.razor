@@ -1,0 +1,55 @@
+@page "/settings"
+@inject DashboardService Dashboard
+
+<h1>Settings</h1>
+
+<p class="settings-intro">
+    Display preferences. Planner behaviour lives on the Blocked time page, and
+    reminders on the Notifications page.
+</p>
+
+<div class="planner-settings">
+    <label class="settings-toggle">
+        <input type="checkbox"
+               checked="@Dashboard.ShowCalendarZoom"
+               @onchange="OnZoomVisibleChangedAsync" />
+        <span>Show the calendar zoom slider</span>
+    </label>
+    <small class="settings-hint">
+        The vertical slider beside the week grid that stretches the hours.
+        Hiding it keeps the calendar edge clean; the last zoom level stays.
+    </small>
+</div>
+
+<div class="planner-settings">
+    <label class="settings-toggle">
+        <input type="checkbox"
+               checked="@Dashboard.CollapseNavToIcons"
+               @onchange="OnNavIconsChangedAsync" />
+        <span>Collapse the sidebar to icons</span>
+    </label>
+    <small class="settings-hint">
+        The sidebar's collapse handle then leaves a narrow icon rail instead of
+        hiding navigation entirely.
+    </small>
+</div>
+
+@code {
+    protected override Task OnInitializedAsync() => Dashboard.LoadAsync();
+
+    private async Task OnZoomVisibleChangedAsync(ChangeEventArgs e)
+    {
+        if (e.Value is bool shown)
+        {
+            await Dashboard.SetShowCalendarZoomAsync(shown);
+        }
+    }
+
+    private async Task OnNavIconsChangedAsync(ChangeEventArgs e)
+    {
+        if (e.Value is bool iconsOnly)
+        {
+            await Dashboard.SetCollapseNavToIconsAsync(iconsOnly);
+        }
+    }
+}

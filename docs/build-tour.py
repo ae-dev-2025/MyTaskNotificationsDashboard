@@ -78,6 +78,13 @@ SCREENS = [
      ["Enter applies the top match without reaching for the mouse",
       "The picker only appears when you have presets, and only when adding",
       "Everything it fills stays editable before you save"]),
+    ("Settings", "9-settings",
+     "Display preferences, kept out of the way",
+     "Settings that change how things look live here; planner behaviour stays "
+     "on the Blocked time page and reminders on Notifications.",
+     ["The calendar's zoom slider can be hidden for a cleaner edge",
+      "Hiding the slider keeps the zoom level, not just the control",
+      "More display preferences land here as they appear"]),
 ]
 
 SPECS = [

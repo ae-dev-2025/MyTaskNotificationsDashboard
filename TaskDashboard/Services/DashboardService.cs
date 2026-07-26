@@ -310,6 +310,22 @@ public class DashboardService
         await SaveAsync();
     }
 
+    public bool ShowCalendarZoom => data.ShowCalendarZoom;
+
+    public async Task SetShowCalendarZoomAsync(bool shown)
+    {
+        data.ShowCalendarZoom = shown;
+        await SaveAsync();
+    }
+
+    public bool CollapseNavToIcons => data.CollapseNavToIcons;
+
+    public async Task SetCollapseNavToIconsAsync(bool iconsOnly)
+    {
+        data.CollapseNavToIcons = iconsOnly;
+        await SaveAsync();
+    }
+
     public async Task DeleteAsync(Guid id)
     {
         if (data.Tasks.RemoveAll(i => i.Id == id) > 0)
