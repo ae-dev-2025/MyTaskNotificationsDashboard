@@ -94,23 +94,66 @@
     background-color: var(--today-tint);
 }
 
+/* Two stacked rows: the time (with the late tag) above, the title below. This
+   was a -webkit-box with -webkit-line-clamp:2, which is only predictable when
+   the box is tall enough for both lines. At these heights it was not: short
+   blocks laid the title on a line the box could never reveal, so it vanished
+   or was cut mid-word with no ellipsis. Rows the block is too short for are
+   simply not rendered, and every row that is rendered is whole. */
 .cal-block {
     position: absolute;
     left: 3px;
     right: 3px;
     border-radius: 0.3rem;
     padding: 0.1rem 0.35rem;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     line-height: 1.25;
     overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    display: flex;
+    flex-direction: column;
+}
+
+.cal-block-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    flex: none;
+}
+
+/* One line, always whole, always ellipsised. Wrapping to a second line reads
+   better in the rare block tall enough for it, but it cannot be done reliably:
+   the row is clipped by the block's own height, so a title that wraps loses its
+   tail with no ellipsis to say so. A single truncated line never lies. */
+.cal-block-title {
+    flex: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Too short for two rows, so everything collapses onto one and ellipsises
+   together — the rows must go inline, or a late tag would push the title onto a
+   second row the block has no height to show. Dropping the time costs little:
+   the block's position and the hour gutter already say when, and the tooltip
+   carries the exact range. Dropping the title would leave a block that cannot
+   be identified at all, which is what it used to do. */
+.cal-block.compact {
+    display: block;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.cal-block.compact .cal-block-head,
+.cal-block.compact .cal-block-title {
+    display: inline;
+}
+
+.cal-block.compact .cal-block-time {
+    display: none;
 }
 
 .cal-block-time {
     font-weight: 700;
-    margin-right: 0.3rem;
 }
 
 /* Planned slots: surface cards with a priority accent bar. */
@@ -251,17 +294,22 @@
     background: var(--now-line);
 }
 
-.cal-now-line::after {
-    content: attr(data-time);
+/* The time reads in the gutter rather than on the line. As a pill on the line
+   it was drawn over the day column at z-index 3, so it covered the first row of
+   whatever block the line crossed — precisely the row holding that block's
+   time, late tag and title. Here it covers only the hour label it sits beside,
+   which is what it is replacing anyway. */
+.cal-now-label {
     position: absolute;
-    left: 8px;
-    top: -9px;
+    right: 0.25rem;
+    transform: translateY(-50%);
     background: var(--now-line);
     color: var(--on-now-line);
-    font-size: 0.6rem;
+    font-size: 0.62rem;
     font-weight: 700;
     padding: 0 0.25rem;
     border-radius: 0.25rem;
+    z-index: 1;
 }
 
 .cal-empty {

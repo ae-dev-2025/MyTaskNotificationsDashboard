@@ -949,9 +949,30 @@ if (mode == "calendar")
     await Step("calendar: planned slots rendered, earliest-deadline first", async () =>
     {
         await Expect(page.Locator(".cal-slot", new() { HasTextString = "Crunch task" }).First).ToBeVisibleAsync();
-        await Expect(page.Locator(".cal-slot", new() { HasTextString = "Write spec" }).First).ToBeVisibleAsync();
         // Plan order: Crunch (soonest deadline) is today's first slot.
         await Expect(page.Locator(".cal-day.today .cal-slot").First).ToContainTextAsync("Crunch task");
+
+        // Write spec is planned after Crunch's two hours plus a break, so late
+        // in the day it lands after midnight — and that is next week's grid
+        // whenever today is the last day of the week. Follow it across rather
+        // than calling a correct plan a failure; the same trap caught the
+        // not-before fixture in realism.
+        async Task<int> SpecSlots() =>
+            await page.Locator(".cal-slot", new() { HasTextString = "Write spec" }).CountAsync();
+
+        if (await SpecSlots() == 0)
+        {
+            await page.GetByRole(AriaRole.Button, new() { Name = "Next week ›" }).ClickAsync();
+            await page.WaitForTimeoutAsync(400);
+            var onNextWeek = await SpecSlots();
+            await page.GetByRole(AriaRole.Button, new() { Name = "Today", Exact = true }).ClickAsync();
+            await page.WaitForTimeoutAsync(400);
+
+            if (onNextWeek == 0)
+            {
+                throw new Exception("Write spec is planned on neither this week nor the next");
+            }
+        }
     });
 
     await Step("calendar: impossible deadline is flagged", () =>
