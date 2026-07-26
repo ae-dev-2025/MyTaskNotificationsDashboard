@@ -5,7 +5,7 @@ Demo assets for showing the app without running it.
 - **`tour.html`** — a screen-by-screen product tour with a Light/Dark toggle
   that swaps every screenshot at once. Open it straight from disk; it
   references `screenshots/` by relative path.
-- **`screenshots/`** — the sixteen captures the tour uses: eight screens × both
+- **`screenshots/`** — the eighteen captures the tour uses: nine screens × both
   themes, 1424×745, taken from the real Windows app.
 - **`build-tour.py`** — regenerates `tour.html` from the screenshots. Pass
   `--embed` to produce `tour.embed.html`, a single self-contained file

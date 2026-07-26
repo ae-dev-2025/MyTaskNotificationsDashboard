@@ -37,4 +37,8 @@ public class DashboardData
     /// right now (Android only). Older files lack the property and default
     /// to on.</summary>
     public bool ShowCurrentTaskNotification { get; set; } = true;
+
+    /// <summary>Whether the calendar shows its zoom slider. Older files lack
+    /// the property and default to shown.</summary>
+    public bool ShowCalendarZoom { get; set; } = true;
 }

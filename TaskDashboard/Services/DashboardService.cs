@@ -310,6 +310,14 @@ public class DashboardService
         await SaveAsync();
     }
 
+    public bool ShowCalendarZoom => data.ShowCalendarZoom;
+
+    public async Task SetShowCalendarZoomAsync(bool shown)
+    {
+        data.ShowCalendarZoom = shown;
+        await SaveAsync();
+    }
+
     public async Task DeleteAsync(Guid id)
     {
         if (data.Tasks.RemoveAll(i => i.Id == id) > 0)

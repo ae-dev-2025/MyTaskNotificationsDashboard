@@ -218,8 +218,16 @@ if (mode == "blocked")
     await Step("planner: slot exists and never overlaps blocked time", async () =>
     {
         // The invariant that holds at any hour: the planned slot may land
-        // after the lunch block or on a later day, but it must never overlap
-        // a blocked range in its own column.
+        // after the lunch block or on a later day — including next week's
+        // grid, when the lunch block pushes it past a Sunday midnight. The
+        // overlap check itself is column-local, so it is valid on whichever
+        // week the slot renders.
+        if (await page.Locator(".cal-slot", new() { HasTextString = "Deep work" }).CountAsync() == 0)
+        {
+            await page.GetByRole(AriaRole.Button, new() { Name = "Next week ›" }).ClickAsync();
+            await page.WaitForTimeoutAsync(400);
+        }
+
         var verdict = await page.EvaluateAsync<string>(
             """
             () => {
@@ -532,6 +540,10 @@ if (mode == "capture")
         await page.WaitForTimeoutAsync(400);
         await Shot($"7-presets-{theme}.png");
 
+        await NavTo("Settings", "Settings");
+        await page.WaitForTimeoutAsync(400);
+        await Shot($"9-settings-{theme}.png");
+
         // The picker is the point of presets, and it only exists inside the
         // add dialog, so photograph it there rather than settling for the
         // management page alone.
@@ -549,7 +561,7 @@ if (mode == "capture")
     await Capture("light");
     await Capture("dark");
     await page.EvaluateAsync("taskDashboard.applyTheme('system')");
-    Console.WriteLine($"CAPTURED 16 screenshots to {shotDir}");
+    Console.WriteLine($"CAPTURED 18 screenshots to {shotDir}");
     return 0;
 }
 
@@ -1002,11 +1014,63 @@ if (mode == "calendar")
     await Step("calendar: completed task appears as a done block", () =>
         Expect(page.Locator(".cal-done").First).ToContainTextAsync("Email follow-up"));
 
-    await Step("calendar: deadline marker present", () =>
-        Expect(page.Locator(".cal-deadline").First).ToBeVisibleAsync());
+    await Step("calendar: deadline marker present", async () =>
+    {
+        // A deadline of now+30min crosses midnight late in the evening, and on
+        // Sundays midnight is also the week boundary — the marker then draws on
+        // next week's grid. Follow it there before declaring it missing.
+        if (await page.Locator(".cal-deadline").CountAsync() == 0)
+        {
+            await page.GetByRole(AriaRole.Button, new() { Name = "Next week ›" }).ClickAsync();
+            await page.WaitForTimeoutAsync(400);
+            var onNextWeek = await page.Locator(".cal-deadline").CountAsync();
+            await page.GetByRole(AriaRole.Button, new() { Name = "Today", Exact = true }).ClickAsync();
+            await page.WaitForTimeoutAsync(400);
+
+            if (onNextWeek == 0)
+            {
+                throw new Exception("no deadline marker on this week or the next");
+            }
+
+            return;
+        }
+
+        await Expect(page.Locator(".cal-deadline").First).ToBeVisibleAsync();
+    });
 
     await Step("calendar: now line drawn on today", () =>
         Expect(page.Locator(".cal-now-line")).ToHaveCountAsync(1));
+
+    await Step("calendar: day and 3-day views narrow the span", async () =>
+    {
+        await page.Locator(".cal-view-day").ClickAsync();
+        await Expect(page.Locator(".cal-day")).ToHaveCountAsync(1);
+        await Expect(page.Locator(".cal-day.today")).ToHaveCountAsync(1);
+
+        await page.Locator(".cal-view-3day").ClickAsync();
+        await Expect(page.Locator(".cal-day")).ToHaveCountAsync(3);
+        // Narrow views anchor on today, so its column leads the span.
+        await Expect(page.Locator(".cal-day").First).ToHaveClassAsync(new Regex("today"));
+
+        await page.Locator(".cal-view-week").ClickAsync();
+        await Expect(page.Locator(".cal-day")).ToHaveCountAsync(7);
+        await Expect(page.Locator(".cal-day.today")).ToHaveCountAsync(1);
+    });
+
+    await Step("settings: hides the zoom slider and brings it back", async () =>
+    {
+        await Expect(page.Locator(".cal-zoom-slider")).ToHaveCountAsync(1);
+
+        await NavTo("Settings", "Settings");
+        await page.GetByLabel("Show the calendar zoom slider").ClickAsync();
+        await NavTo("Calendar", "Calendar");
+        await Expect(page.Locator(".cal-zoom-slider")).ToHaveCountAsync(0);
+
+        await NavTo("Settings", "Settings");
+        await page.GetByLabel("Show the calendar zoom slider").ClickAsync();
+        await NavTo("Calendar", "Calendar");
+        await Expect(page.Locator(".cal-zoom-slider")).ToHaveCountAsync(1);
+    });
 
     await Step("calendar: zoom slider rescales the grid", async () =>
     {

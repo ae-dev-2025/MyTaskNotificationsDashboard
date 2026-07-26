@@ -7,7 +7,8 @@
 .cal-toolbar {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
     margin: 0.75rem 0;
 }
 
@@ -59,7 +60,7 @@
     top: 0;
     z-index: 6;
     display: grid;
-    grid-template-columns: 3.5rem repeat(7, 1fr);
+    grid-template-columns: 3.5rem repeat(var(--day-count, 7), 1fr);
     background: var(--surface);
     border-bottom: 1px solid var(--border);
 }
@@ -88,7 +89,7 @@
    scale cannot drift apart between C# and CSS. */
 .cal-grid {
     display: grid;
-    grid-template-columns: 3.5rem repeat(7, 1fr);
+    grid-template-columns: 3.5rem repeat(var(--day-count, 7), 1fr);
     height: calc(24 * var(--hour-px, 48px));
 }
 

@@ -181,6 +181,8 @@ if (mode == "zoomshot")
     await WaitFor("document.querySelector('.cal-grid')", "calendar rendered");
     await Click(".nav-collapse");
     await WaitFor("getComputedStyle(document.querySelector('.sidebar')).display === 'none'", "nav hidden");
+    await Click(".cal-view-day");
+    await WaitFor("document.querySelectorAll('.cal-day').length === 1", "day view");
     // Zoom first, then aim: placing the viewport at the final scale keeps this
     // idempotent — a previous run may have left the calendar already zoomed,
     // in which case the slider event is a no-op and no scroll correction runs.
@@ -323,6 +325,28 @@ await Step("calendar: zoom slider rescales the grid", async () =>
         "(() => { const s = document.querySelector('.cal-zoom-slider');" +
         " s.value = '48'; s.dispatchEvent(new Event('input', { bubbles: true })); })()");
     await WaitFor("Math.abs(document.querySelector('.cal-grid').getBoundingClientRect().height - 24 * 48) < 3", "grid back at default");
+});
+
+await Step("calendar: day and 3-day views narrow the span", async () =>
+{
+    await Click(".cal-view-day");
+    await WaitFor("document.querySelectorAll('.cal-day').length === 1", "one day column");
+    await Click(".cal-view-3day");
+    await WaitFor("document.querySelectorAll('.cal-day').length === 3", "three day columns");
+    await Click(".cal-view-week");
+    await WaitFor("document.querySelectorAll('.cal-day').length === 7", "week restored");
+});
+
+await Step("settings: zoom slider visibility round-trips", async () =>
+{
+    await NavTo("settings", "Settings");
+    await Click(".settings-toggle input");
+    await NavTo("calendar", "Calendar");
+    await WaitFor("!document.querySelector('.cal-zoom-slider')", "slider hidden");
+    await NavTo("settings", "Settings");
+    await Click(".settings-toggle input");
+    await NavTo("calendar", "Calendar");
+    await WaitFor("document.querySelector('.cal-zoom-slider')", "slider shown");
 });
 
 await Step("blocked: add recurring Sleep period clear of now", async () =>
