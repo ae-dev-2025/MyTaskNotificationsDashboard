@@ -225,11 +225,13 @@ if (mode == "blocked")
                         slots.map(e => e.innerText.replace(/\s+/g, ' ')).join(' | ') + ']';
                 }
                 const s = slot.getBoundingClientRect();
-                // Blocks under ~15px are midnight fragments inflated by the
-                // calendar's 14px readability clamp — their pixels overstate
-                // their real duration, so they can't prove a genuine overlap.
+                // Blocks at or under the clamp are midnight fragments inflated
+                // by the calendar's readability floor (MinBlockPx, currently
+                // 20px) — their pixels overstate their real duration, so they
+                // can't prove a genuine overlap. Keep this in step with
+                // CalendarPage.MinBlockPx.
                 const hit = [...slot.parentElement.querySelectorAll('.cal-blocked')]
-                    .filter(b => b.getBoundingClientRect().height > 15)
+                    .filter(b => b.getBoundingClientRect().height > 21)
                     .find(b => {
                         const r = b.getBoundingClientRect();
                         return r.top < s.bottom - 1 && r.bottom > s.top + 1;
@@ -289,6 +291,66 @@ if (mode == "migrated")
 
     Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
     return failures == 0 ? 0 : 1;
+}
+
+if (mode == "capture")
+{
+    // Produces the docs/ demo screenshots: every page in both themes, plus the
+    // edit modal. Expects the app to have been launched over demo data seeded
+    // by docs/capture.ps1 — this mode only drives and photographs, it never
+    // writes. Unlike the test modes, any failure is fatal: a partial set of
+    // screenshots must not silently overwrite a complete one.
+    Directory.CreateDirectory(shotDir);
+
+    async Task Capture(string theme)
+    {
+        // applyTheme with an explicit argument stamps data-bs-theme without
+        // touching the persisted preference.
+        await page.EvaluateAsync($"taskDashboard.applyTheme('{theme}')");
+        await page.WaitForTimeoutAsync(400);
+
+        await NavTo("Dashboard", "Dashboard");
+        await page.WaitForTimeoutAsync(600);
+        await Shot($"1-dashboard-{theme}.png");
+
+        await NavTo("Tasks", "Tasks");
+        await page.WaitForTimeoutAsync(400);
+        await Shot($"2-tasks-{theme}.png");
+
+        await Row("Prepare the demo slides")
+            .GetByRole(AriaRole.Button, new() { Name = "Edit" }).ClickAsync();
+        await Expect(modal).ToBeVisibleAsync();
+        await page.WaitForTimeoutAsync(300);
+        await Shot($"3-edit-modal-{theme}.png");
+        await CancelModal();
+        await Expect(modal).ToHaveCountAsync(0);
+
+        await NavTo("Calendar", "Calendar");
+        await page.WaitForTimeoutAsync(600);
+        // Frame the hours around the now-line rather than a fixed noon, so a
+        // capture at any hour keeps history, the marker and the plan in view.
+        await page.EvaluateAsync(
+            """
+            () => {
+                const s = document.querySelector('.cal-scroll');
+                if (!s) return;
+                const h = new Date().getHours();
+                s.scrollTop = Math.max(0, Math.min((h - 5) * 48, s.scrollHeight));
+            }
+            """);
+        await page.WaitForTimeoutAsync(400);
+        await Shot($"4-calendar-{theme}.png");
+
+        await NavTo("Blocked time", "Blocked time");
+        await page.WaitForTimeoutAsync(400);
+        await Shot($"5-blocked-time-{theme}.png");
+    }
+
+    await Capture("light");
+    await Capture("dark");
+    await page.EvaluateAsync("taskDashboard.applyTheme('system')");
+    Console.WriteLine($"CAPTURED 10 screenshots to {shotDir}");
+    return 0;
 }
 
 if (mode == "theme")

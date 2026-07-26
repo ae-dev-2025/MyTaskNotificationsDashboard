@@ -1,40 +1,151 @@
 <!-- @dsCard group="Tokens" -->
 <!doctype html><html><head><meta charset="utf-8"><title>Color tokens</title>
+<style id="ds-tokens">
+:root {
+    --surface: #ffffff;
+    /* App chrome (sidebar, top bar) sits a step off --surface so the shell
+       reads as frame rather than content. */
+    --chrome: #f8f9fa;
+    --text: #212529;
+    --text-muted: #6c757d;
+    --text-faint: #868e96;
+    --label: #495057;
+    --border: #dee2e6;
+    --border-subtle: #e5e5e5;
+    --hairline: #f1f3f5;
+    --accent: #1b6ec2;
+    --accent-strong: #1861ac;
+    --accent-soft: #eaf3fc;
+    /* Text on an --accent fill. Dark mode lightens --accent, so white text
+       would drop to ~2.8:1 there; ink is the readable pairing. */
+    --on-accent: #ffffff;
+    --today-tint: #f7fbff;
+    --started-tint: #f0f7ff;
+    --inprogress-bg: #cfe2ff;
+    --inprogress-fg: #084298;
+    --p-low-bg: #e9ecef;
+    --p-low-fg: #495057;
+    --p-normal-bg: #d5e5f7;
+    --p-normal-fg: #1c4f82;
+    --p-high-bg: #fde5cc;
+    --p-high-fg: #8a4b08;
+    --p-urgent-bg: #f8d7da;
+    --p-urgent-fg: #842029;
+    --danger: #b02a37;
+    --danger-soft-border: #f1aeb5;
+    --danger-soft-bg: #fdf2f3;
+    --danger-fg: #842029;
+    --done-bg: #e6f4ea;
+    --done-fg: #1e7e34;
+    --blocked-a: #e9ecef;
+    --blocked-b: #f4f5f7;
+    --blocked-fg: #868e96;
+    /* Violet, deliberately outside the priority ramp (grey/blue/orange/red)
+       so the current-time line cannot be read as an urgent-task accent. */
+    --now-line: #7048e8;
+    --on-now-line: #ffffff;
+    --backdrop: rgba(15, 23, 42, 0.45);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+    --panel-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+    --weekend-tint: #fafbfc;
+    --p-low-accent: #868e96;
+    --p-normal-accent: #1b6ec2;
+    --p-high-accent: #e8871a;
+    --p-urgent-accent: #dc3545;
+}
+[data-bs-theme=dark] {
+    --surface: #22262b;
+    --chrome: #1c2024;
+    --text: #e9ecef;
+    --text-muted: #a2acb5;
+    --text-faint: #8a939c;
+    --label: #c4ccd3;
+    --border: #3a4148;
+    --border-subtle: #333a41;
+    --hairline: #2a3036;
+    --accent: #4d9fe8;
+    --accent-strong: #7ab8ef;
+    --accent-soft: #16283a;
+    --on-accent: #0b1c2c;
+    --today-tint: #1a2027;
+    --started-tint: #182430;
+    --inprogress-bg: #143a66;
+    --inprogress-fg: #9ec5f2;
+    --p-low-bg: #343a40;
+    --p-low-fg: #ced4da;
+    --p-normal-bg: #163a5e;
+    --p-normal-fg: #9cc7ef;
+    --p-high-bg: #4c3010;
+    --p-high-fg: #f3c088;
+    --p-urgent-bg: #4a1d22;
+    --p-urgent-fg: #f1a6ad;
+    --danger: #e4606d;
+    --danger-soft-border: #6e2a31;
+    --danger-soft-bg: #33191d;
+    --danger-fg: #f1a6ad;
+    --done-bg: #16321f;
+    --done-fg: #6fce8b;
+    --blocked-a: #2a3036;
+    --blocked-b: #23282e;
+    --blocked-fg: #8a939c;
+    --now-line: #9775fa;
+    /* The dark now-line is light enough that white sat at ~3.6:1 on it. */
+    --on-now-line: #1a1030;
+    --backdrop: rgba(0, 0, 0, 0.6);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --panel-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+    --weekend-tint: #1e2328;
+    --p-low-accent: #9aa4ad;
+    --p-normal-accent: #4d9fe8;
+    --p-high-accent: #f0a04b;
+    --p-urgent-accent: #e4606d;
+}
+</style><!-- /ds-tokens -->
 <style>
 body{font-family:'Helvetica Neue',Arial,sans-serif;margin:0;display:flex}
-.theme{flex:1;padding:1rem}
-.light{background:#fff;color:#212529}
-.dark{background:#16191d;color:#e9ecef}
+.theme{flex:1;padding:1rem;background:var(--chrome);color:var(--text)}
 h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;opacity:.6;margin:0 0 .6rem}
 .row{display:flex;align-items:center;gap:.5rem;margin:.25rem 0;font-size:.75rem}
 .sw{width:2.2rem;height:1.3rem;border-radius:.3rem;border:1px solid rgba(128,128,128,.35)}
+.ramp{margin-top:1rem}
+.pair{display:flex;align-items:center;gap:.4rem;margin:.25rem 0;font-size:.75rem}
+.bar{width:.45rem;height:1.3rem;border-radius:.15rem}
+.chip{padding:.15rem .5rem;border-radius:.375rem;font-size:.7rem;font-weight:600;min-width:4rem;text-align:center}
 </style></head><body>
-<div class="theme light"><h2>Light</h2>
-<div class="row"><span class="sw" style="background:#ffffff"></span>--surface #ffffff</div>
-<div class="row"><span class="sw" style="background:#212529"></span>--text #212529</div>
-<div class="row"><span class="sw" style="background:#6c757d"></span>--text-muted #6c757d</div>
-<div class="row"><span class="sw" style="background:#dee2e6"></span>--border #dee2e6</div>
-<div class="row"><span class="sw" style="background:#1b6ec2"></span>--accent #1b6ec2</div>
-<div class="row"><span class="sw" style="background:#b02a37"></span>--danger #b02a37</div>
-<div class="row"><span class="sw" style="background:#e6f4ea"></span>--done-bg #e6f4ea</div>
-<div class="row"><span class="sw" style="background:#d6336c"></span>--now-line #d6336c</div>
-<div class="row"><span class="sw" style="background:#868e96"></span>--p-low-accent</div>
-<div class="row"><span class="sw" style="background:#1b6ec2"></span>--p-normal-accent</div>
-<div class="row"><span class="sw" style="background:#e8871a"></span>--p-high-accent</div>
-<div class="row"><span class="sw" style="background:#dc3545"></span>--p-urgent-accent</div>
+<div class="theme"><h2>Light</h2>
+<div class="row"><span class="sw" style="background:var(--surface)"></span>--surface</div>
+<div class="row"><span class="sw" style="background:var(--chrome)"></span>--chrome</div>
+<div class="row"><span class="sw" style="background:var(--text)"></span>--text</div>
+<div class="row"><span class="sw" style="background:var(--text-muted)"></span>--text-muted</div>
+<div class="row"><span class="sw" style="background:var(--border)"></span>--border</div>
+<div class="row"><span class="sw" style="background:var(--accent)"></span>--accent</div>
+<div class="row"><span class="sw" style="background:var(--accent-strong)"></span>--accent-strong</div>
+<div class="row"><span class="sw" style="background:var(--danger)"></span>--danger</div>
+<div class="row"><span class="sw" style="background:var(--done-bg)"></span>--done-bg</div>
+<div class="row"><span class="sw" style="background:var(--now-line)"></span>--now-line</div>
+<div class="ramp"><h2>Priority — chip and accent, one hue at two intensities</h2>
+<div class="pair"><span class="bar" style="background:var(--p-low-accent)"></span><span class="chip" style="background:var(--p-low-bg);color:var(--p-low-fg)">Low</span>--p-low-*</div>
+<div class="pair"><span class="bar" style="background:var(--p-normal-accent)"></span><span class="chip" style="background:var(--p-normal-bg);color:var(--p-normal-fg)">Normal</span>--p-normal-*</div>
+<div class="pair"><span class="bar" style="background:var(--p-high-accent)"></span><span class="chip" style="background:var(--p-high-bg);color:var(--p-high-fg)">High</span>--p-high-*</div>
+<div class="pair"><span class="bar" style="background:var(--p-urgent-accent)"></span><span class="chip" style="background:var(--p-urgent-bg);color:var(--p-urgent-fg)">Urgent</span>--p-urgent-*</div>
 </div>
-<div class="theme dark"><h2>Dark</h2>
-<div class="row"><span class="sw" style="background:#22262b"></span>--surface #22262b</div>
-<div class="row"><span class="sw" style="background:#e9ecef"></span>--text #e9ecef</div>
-<div class="row"><span class="sw" style="background:#a2acb5"></span>--text-muted #a2acb5</div>
-<div class="row"><span class="sw" style="background:#3a4148"></span>--border #3a4148</div>
-<div class="row"><span class="sw" style="background:#4d9fe8"></span>--accent #4d9fe8</div>
-<div class="row"><span class="sw" style="background:#e4606d"></span>--danger #e4606d</div>
-<div class="row"><span class="sw" style="background:#16321f"></span>--done-bg #16321f</div>
-<div class="row"><span class="sw" style="background:#ef5c8f"></span>--now-line #ef5c8f</div>
-<div class="row"><span class="sw" style="background:#9aa4ad"></span>--p-low-accent</div>
-<div class="row"><span class="sw" style="background:#4d9fe8"></span>--p-normal-accent</div>
-<div class="row"><span class="sw" style="background:#f0a04b"></span>--p-high-accent</div>
-<div class="row"><span class="sw" style="background:#e4606d"></span>--p-urgent-accent</div>
+</div>
+<div class="theme" data-bs-theme="dark"><h2>Dark</h2>
+<div class="row"><span class="sw" style="background:var(--surface)"></span>--surface</div>
+<div class="row"><span class="sw" style="background:var(--chrome)"></span>--chrome</div>
+<div class="row"><span class="sw" style="background:var(--text)"></span>--text</div>
+<div class="row"><span class="sw" style="background:var(--text-muted)"></span>--text-muted</div>
+<div class="row"><span class="sw" style="background:var(--border)"></span>--border</div>
+<div class="row"><span class="sw" style="background:var(--accent)"></span>--accent</div>
+<div class="row"><span class="sw" style="background:var(--accent-strong)"></span>--accent-strong</div>
+<div class="row"><span class="sw" style="background:var(--danger)"></span>--danger</div>
+<div class="row"><span class="sw" style="background:var(--done-bg)"></span>--done-bg</div>
+<div class="row"><span class="sw" style="background:var(--now-line)"></span>--now-line</div>
+<div class="ramp"><h2>Priority — chip and accent, one hue at two intensities</h2>
+<div class="pair"><span class="bar" style="background:var(--p-low-accent)"></span><span class="chip" style="background:var(--p-low-bg);color:var(--p-low-fg)">Low</span>--p-low-*</div>
+<div class="pair"><span class="bar" style="background:var(--p-normal-accent)"></span><span class="chip" style="background:var(--p-normal-bg);color:var(--p-normal-fg)">Normal</span>--p-normal-*</div>
+<div class="pair"><span class="bar" style="background:var(--p-high-accent)"></span><span class="chip" style="background:var(--p-high-bg);color:var(--p-high-fg)">High</span>--p-high-*</div>
+<div class="pair"><span class="bar" style="background:var(--p-urgent-accent)"></span><span class="chip" style="background:var(--p-urgent-bg);color:var(--p-urgent-fg)">Urgent</span>--p-urgent-*</div>
+</div>
 </div>
 </body></html>

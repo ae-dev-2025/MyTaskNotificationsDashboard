@@ -1,48 +1,153 @@
 <!-- @dsCard group="Calendar" -->
 <!doctype html><html><head><meta charset="utf-8"><title>Calendar blocks</title>
+<style id="ds-tokens">
+:root {
+    --surface: #ffffff;
+    /* App chrome (sidebar, top bar) sits a step off --surface so the shell
+       reads as frame rather than content. */
+    --chrome: #f8f9fa;
+    --text: #212529;
+    --text-muted: #6c757d;
+    --text-faint: #868e96;
+    --label: #495057;
+    --border: #dee2e6;
+    --border-subtle: #e5e5e5;
+    --hairline: #f1f3f5;
+    --accent: #1b6ec2;
+    --accent-strong: #1861ac;
+    --accent-soft: #eaf3fc;
+    /* Text on an --accent fill. Dark mode lightens --accent, so white text
+       would drop to ~2.8:1 there; ink is the readable pairing. */
+    --on-accent: #ffffff;
+    --today-tint: #f7fbff;
+    --started-tint: #f0f7ff;
+    --inprogress-bg: #cfe2ff;
+    --inprogress-fg: #084298;
+    --p-low-bg: #e9ecef;
+    --p-low-fg: #495057;
+    --p-normal-bg: #d5e5f7;
+    --p-normal-fg: #1c4f82;
+    --p-high-bg: #fde5cc;
+    --p-high-fg: #8a4b08;
+    --p-urgent-bg: #f8d7da;
+    --p-urgent-fg: #842029;
+    --danger: #b02a37;
+    --danger-soft-border: #f1aeb5;
+    --danger-soft-bg: #fdf2f3;
+    --danger-fg: #842029;
+    --done-bg: #e6f4ea;
+    --done-fg: #1e7e34;
+    --blocked-a: #e9ecef;
+    --blocked-b: #f4f5f7;
+    --blocked-fg: #868e96;
+    /* Violet, deliberately outside the priority ramp (grey/blue/orange/red)
+       so the current-time line cannot be read as an urgent-task accent. */
+    --now-line: #7048e8;
+    --on-now-line: #ffffff;
+    --backdrop: rgba(15, 23, 42, 0.45);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+    --panel-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+    --weekend-tint: #fafbfc;
+    --p-low-accent: #868e96;
+    --p-normal-accent: #1b6ec2;
+    --p-high-accent: #e8871a;
+    --p-urgent-accent: #dc3545;
+}
+[data-bs-theme=dark] {
+    --surface: #22262b;
+    --chrome: #1c2024;
+    --text: #e9ecef;
+    --text-muted: #a2acb5;
+    --text-faint: #8a939c;
+    --label: #c4ccd3;
+    --border: #3a4148;
+    --border-subtle: #333a41;
+    --hairline: #2a3036;
+    --accent: #4d9fe8;
+    --accent-strong: #7ab8ef;
+    --accent-soft: #16283a;
+    --on-accent: #0b1c2c;
+    --today-tint: #1a2027;
+    --started-tint: #182430;
+    --inprogress-bg: #143a66;
+    --inprogress-fg: #9ec5f2;
+    --p-low-bg: #343a40;
+    --p-low-fg: #ced4da;
+    --p-normal-bg: #163a5e;
+    --p-normal-fg: #9cc7ef;
+    --p-high-bg: #4c3010;
+    --p-high-fg: #f3c088;
+    --p-urgent-bg: #4a1d22;
+    --p-urgent-fg: #f1a6ad;
+    --danger: #e4606d;
+    --danger-soft-border: #6e2a31;
+    --danger-soft-bg: #33191d;
+    --danger-fg: #f1a6ad;
+    --done-bg: #16321f;
+    --done-fg: #6fce8b;
+    --blocked-a: #2a3036;
+    --blocked-b: #23282e;
+    --blocked-fg: #8a939c;
+    --now-line: #9775fa;
+    /* The dark now-line is light enough that white sat at ~3.6:1 on it. */
+    --on-now-line: #1a1030;
+    --backdrop: rgba(0, 0, 0, 0.6);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --panel-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+    --weekend-tint: #1e2328;
+    --p-low-accent: #9aa4ad;
+    --p-normal-accent: #4d9fe8;
+    --p-high-accent: #f0a04b;
+    --p-urgent-accent: #e4606d;
+}
+</style><!-- /ds-tokens -->
 <style>
 body{font-family:'Helvetica Neue',Arial,sans-serif;margin:0;display:flex}
-.theme{flex:1;padding:1rem;display:flex;flex-direction:column;gap:.5rem}
-.light{background:#f6f7f8}.dark{background:#16191d}
+.theme{flex:1;padding:1rem;display:flex;flex-direction:column;gap:.5rem;background:var(--chrome)}
 .blk{border-radius:.3rem;padding:.15rem .4rem;font-size:.72rem;line-height:1.3;max-width:15rem}
 .t{font-weight:700;margin-right:.3rem}
-.light .slot{background:#fff;border:1px solid #e5e5e5;color:#212529;box-shadow:0 1px 2px rgba(0,0,0,.12)}
-.dark .slot{background:#22262b;border:1px solid #333a41;color:#e9ecef;box-shadow:0 1px 2px rgba(0,0,0,.5)}
-.slot{border-left-width:4px !important;border-left-style:solid !important}
-.light .normal{border-left-color:#1b6ec2}.light .normal .t{color:#1b6ec2}
-.dark .normal{border-left-color:#4d9fe8}.dark .normal .t{color:#4d9fe8}
-.light .high{border-left-color:#e8871a}.light .high .t{color:#e8871a}
-.dark .high{border-left-color:#f0a04b}.dark .high .t{color:#f0a04b}
-.light .urgent{border-left-color:#dc3545}.light .urgent .t{color:#dc3545}
-.dark .urgent{border-left-color:#e4606d}.dark .urgent .t{color:#e4606d}
-.light .missed{outline:2px solid #b02a37;outline-offset:-2px}
-.dark .missed{outline:2px solid #e4606d;outline-offset:-2px}
-.light .started{background:#f0f7ff;border-left-color:#1b6ec2}
-.dark .started{background:#182430;border-left-color:#4d9fe8}
-.light .done{background:#e6f4ea;color:#1e7e34;border-left:4px solid #1e7e34;opacity:.85}
-.dark .done{background:#16321f;color:#6fce8b;border-left:4px solid #6fce8b;opacity:.85}
-.light .blocked{background:repeating-linear-gradient(45deg,#e9ecef 0,#e9ecef 6px,#f4f5f7 6px,#f4f5f7 12px);color:#868e96}
-.dark .blocked{background:repeating-linear-gradient(45deg,#2a3036 0,#2a3036 6px,#23282e 6px,#23282e 12px);color:#8a939c}
-.chip{display:inline-block;font-size:.62rem;font-weight:700;padding:0 .3rem;border-radius:.3rem}
-.light .chip{background:#fdf2f3;border:1px solid #f1aeb5;color:#b02a37}
-.dark .chip{background:#33191d;border:1px solid #6e2a31;color:#e4606d}
+.slot{background:var(--surface);border:1px solid var(--border-subtle);color:var(--text);box-shadow:var(--shadow);border-left-width:4px !important;border-left-style:solid !important}
+.normal{border-left-color:var(--p-normal-accent)}.normal .t{color:var(--p-normal-accent)}
+.high{border-left-color:var(--p-high-accent)}.high .t{color:var(--p-high-accent)}
+.urgent{border-left-color:var(--p-urgent-accent)}.urgent .t{color:var(--p-urgent-accent)}
+.missed{outline:2px solid var(--danger);outline-offset:-2px}
+.started{background:var(--started-tint);border-left-color:var(--accent)}
+.done{background:var(--done-bg);color:var(--done-fg);border-left:4px solid var(--done-fg);opacity:.85}
+.blocked{background:repeating-linear-gradient(45deg,var(--blocked-a) 0,var(--blocked-a) 6px,var(--blocked-b) 6px,var(--blocked-b) 12px);color:var(--blocked-fg)}
+.chip{display:inline-block;font-size:.62rem;font-weight:700;padding:0 .3rem;border-radius:.3rem;background:var(--danger-soft-bg);border:1px solid var(--danger-soft-border);color:var(--danger)}
+.late{background:var(--p-urgent-bg);color:var(--p-urgent-fg);border-radius:.25rem;font-size:.62rem;font-weight:700;padding:0 .25rem;margin-left:.25rem;text-transform:uppercase}
+.lanes{position:relative;height:2.6rem;max-width:15rem}
+.lanes .blk{position:absolute;top:0;height:2.4rem;box-sizing:border-box}
+.lane0{left:0;width:calc(50% - 2px)}
+.lane1{left:50%;width:calc(50% - 2px)}
+.note{font-size:.65rem;color:var(--text-muted);margin-top:.2rem}
 </style></head><body>
-<div class="theme light">
+<div class="theme">
 <div class="blk slot normal"><span class="t">09:00</span>Planned task</div>
 <div class="blk slot high"><span class="t">10:15</span>High priority</div>
-<div class="blk slot urgent missed"><span class="t">11:30</span>Will miss deadline</div>
+<div class="blk slot urgent missed"><span class="t">11:30</span>Will miss deadline<span class="late">late</span></div>
 <div class="blk slot normal started"><span class="t">12:45</span>In progress</div>
 <div class="blk done"><span class="t">14:00</span>✓ Completed task</div>
 <div class="blk blocked"><span class="t">23:00</span>Sleep</div>
 <span class="chip">⚑ Report due</span>
+<div class="lanes">
+<div class="blk slot normal lane0"><span class="t">15:00</span>Concurrent A</div>
+<div class="blk done lane1"><span class="t">15:30</span>✓ Concurrent B</div>
 </div>
-<div class="theme dark">
+<div class="note">Overlapping entries split into lanes; blocked shading stays full width behind them.</div>
+</div>
+<div class="theme" data-bs-theme="dark">
 <div class="blk slot normal"><span class="t">09:00</span>Planned task</div>
 <div class="blk slot high"><span class="t">10:15</span>High priority</div>
-<div class="blk slot urgent missed"><span class="t">11:30</span>Will miss deadline</div>
+<div class="blk slot urgent missed"><span class="t">11:30</span>Will miss deadline<span class="late">late</span></div>
 <div class="blk slot normal started"><span class="t">12:45</span>In progress</div>
 <div class="blk done"><span class="t">14:00</span>✓ Completed task</div>
 <div class="blk blocked"><span class="t">23:00</span>Sleep</div>
 <span class="chip">⚑ Report due</span>
+<div class="lanes">
+<div class="blk slot normal lane0"><span class="t">15:00</span>Concurrent A</div>
+<div class="blk done lane1"><span class="t">15:30</span>✓ Concurrent B</div>
+</div>
+<div class="note">Overlapping entries split into lanes; blocked shading stays full width behind them.</div>
 </div>
 </body></html>

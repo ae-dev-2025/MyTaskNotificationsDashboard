@@ -65,30 +65,7 @@
     color: var(--text-muted);
 }
 
-.task-meta .badge.priority {
-    font-weight: 600;
-    letter-spacing: 0.01em;
-}
-
-.priority-low {
-    background-color: var(--p-low-bg);
-    color: var(--p-low-fg);
-}
-
-.priority-normal {
-    background-color: var(--p-normal-bg);
-    color: var(--p-normal-fg);
-}
-
-.priority-high {
-    background-color: var(--p-high-bg);
-    color: var(--p-high-fg);
-}
-
-.priority-urgent {
-    background-color: var(--p-urgent-bg);
-    color: var(--p-urgent-fg);
-}
+/* Priority badge palette lives in app.css — shared with the dashboard. */
 
 .task-item.overdue .deadline {
     color: var(--danger);

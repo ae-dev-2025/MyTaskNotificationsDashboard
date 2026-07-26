@@ -1,0 +1,72 @@
+@page "/notifications"
+@inject DashboardService Dashboard
+
+<h1>Notifications</h1>
+
+<p class="blocked-intro">
+    Deadline reminders, delivered as local notifications on your device.
+</p>
+
+<div class="planner-settings">
+    <label class="settings-toggle">
+        <input type="checkbox"
+               checked="@Dashboard.NotificationsEnabled"
+               @onchange="OnEnabledChangedAsync" />
+        <span>Remind me about deadlines</span>
+    </label>
+
+    <label for="lead-minutes">Heads-up before a deadline (minutes)</label>
+    <input id="lead-minutes"
+           type="number"
+           class="form-control break-input"
+           min="0" max="1440"
+           value="@Dashboard.NotificationLeadMinutes"
+           disabled="@(!Dashboard.NotificationsEnabled)"
+           @onchange="OnLeadChangedAsync" />
+    <small class="settings-hint">
+        You'll get one reminder this far ahead of each deadline, and another when
+        it's due. On Windows, reminders appear while the app is running; on
+        Android they arrive even when it's closed.
+    </small>
+</div>
+
+<div class="planner-settings">
+    <label class="settings-toggle">
+        <input type="checkbox"
+               checked="@Dashboard.ShowCurrentTaskNotification"
+               @onchange="OnCurrentTaskChangedAsync" />
+        <span>Always show the current task</span>
+    </label>
+    <small class="settings-hint">
+        Keeps a persistent notification pinned with whatever you should be doing
+        now. Android only — Windows has no always-on notification.
+    </small>
+</div>
+
+@code {
+    protected override Task OnInitializedAsync() => Dashboard.LoadAsync();
+
+    private async Task OnEnabledChangedAsync(ChangeEventArgs e)
+    {
+        if (e.Value is bool enabled)
+        {
+            await Dashboard.SetNotificationsEnabledAsync(enabled);
+        }
+    }
+
+    private async Task OnLeadChangedAsync(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var minutes))
+        {
+            await Dashboard.SetNotificationLeadMinutesAsync(minutes);
+        }
+    }
+
+    private async Task OnCurrentTaskChangedAsync(ChangeEventArgs e)
+    {
+        if (e.Value is bool enabled)
+        {
+            await Dashboard.SetShowCurrentTaskNotificationAsync(enabled);
+        }
+    }
+}

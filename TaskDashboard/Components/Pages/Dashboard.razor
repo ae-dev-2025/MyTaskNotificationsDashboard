@@ -1,4 +1,4 @@
-@page "/"
+﻿@page "/"
 @inject DashboardService Data
 @implements IDisposable
 
@@ -106,7 +106,7 @@
         }
         else
         {
-            <p class="panel-empty">Nothing planned right now. Enjoy the slack.</p>
+            <p class="panel-empty">Nothing planned right now.</p>
         }
     </section>
 
@@ -114,7 +114,7 @@
         <h2>Up next</h2>
         @if (UpcomingSlots.Count == 0)
         {
-            <p class="panel-empty">Nothing queued inside the horizon.</p>
+            <p class="panel-empty">Nothing planned in the next two weeks.</p>
         }
         else
         {

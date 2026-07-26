@@ -30,3 +30,6 @@ packages/
 
 # Android release signing key - never commit; see signing/README-BACKUP.txt
 signing/
+
+# Generated single-file variant of the product tour (python docs/build-tour.py --embed)
+docs/tour.embed.html
