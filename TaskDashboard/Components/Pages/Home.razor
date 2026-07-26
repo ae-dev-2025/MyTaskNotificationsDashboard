@@ -173,11 +173,13 @@ else
 
     private void BeginEdit(TodoItem item)
     {
-        var source = TaskForm.From(item);
-        form.Title = source.Title;
-        form.Deadline = source.Deadline;
-        form.Priority = source.Priority;
-        form.EstimatedMinutes = source.EstimatedMinutes;
+        // Reset first, then copy. CopyFrom assigns every field, so the reset is
+        // redundant today — deliberately so. It is the backstop that decides how
+        // a future missed field fails: blank on the task being edited, which is
+        // visible, rather than silently inheriting the previously edited task's
+        // value, which is not. NotBefore failed the second way.
+        form.Reset();
+        form.CopyFrom(TaskForm.From(item));
 
         editingId = item.Id;
         modalOpen = true;

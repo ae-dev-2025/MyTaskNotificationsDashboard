@@ -1110,6 +1110,67 @@ await Step("delete removes a task", async () =>
     await Expect(Row("Buy milk")).ToHaveCountAsync(1);
 });
 
+// Not-before is the one field the edit dialog used to drop, and it fails
+// quietly: the planner simply declines to schedule the task, with nothing on
+// the row to say why. Both consequences are asserted below.
+var floorText = DateTime.Today.AddDays(1).AddHours(9).ToString("yyyy-MM-ddTHH:mm");
+
+async Task OpenEdit(string title) =>
+    await Row(title).GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Edit") }).ClickAsync();
+
+await Step("not-before: survives an edit round-trip", async () =>
+{
+    await AddTask("Waits till nine", null, "Normal", "20", floorText);
+
+    // Clear the shared form before opening the edit dialog. Without this the
+    // value typed during the add is still sitting in the form, so the field
+    // shows the right thing for the wrong reason and the assertion passes even
+    // when the edit dialog loads nothing at all. Opening Add resets it.
+    await OpenAddModal();
+    await CancelModal();
+
+    await OpenEdit("Waits till nine");
+    await Expect(modal.GetByLabel("Not before")).ToHaveValueAsync(floorText);
+    await SaveModal();
+
+    // Saving without touching the field must not clear it.
+    await OpenEdit("Waits till nine");
+    await Expect(modal.GetByLabel("Not before")).ToHaveValueAsync(floorText);
+    await CancelModal();
+});
+
+await Step("not-before: does not leak onto the next task edited", async () =>
+{
+    // Order is the whole test. The add dialog resets the shared form, so the
+    // stale value has to be planted by an add that sets a floor, immediately
+    // before editing a task that has none.
+    await AddTask("Anytime task", null, "Normal", "20");
+    await AddTask("Second waiter", null, "Normal", "20", floorText);
+
+    await OpenEdit("Anytime task");
+    await Expect(modal.GetByLabel("Not before")).ToHaveValueAsync("");
+    await SaveModal();
+
+    await OpenEdit("Anytime task");
+    await Expect(modal.GetByLabel("Not before")).ToHaveValueAsync("");
+    await CancelModal();
+});
+
+await Step("cleanup: remove the not-before fixtures", async () =>
+{
+    // Titles chosen so none contains another: Row matches by substring, and a
+    // fixture that also matches its neighbour deletes the wrong row.
+    foreach (var title in new[] { "Waits till nine", "Anytime task", "Second waiter" })
+    {
+        await Row(title).GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Delete") }).ClickAsync();
+        await page.WaitForTimeoutAsync(200);
+    }
+
+    // The end state verify asserts against must be exactly what it was.
+    await Expect(page.Locator(".task-item")).ToHaveCountAsync(1);
+    await Expect(Row("Buy milk")).ToHaveCountAsync(1);
+});
+
 await Step("footer: totals only the remaining estimate", () =>
     Expect(footer).ToContainTextAsync("1 task left"));
 await Shot("ui-04-final.png");

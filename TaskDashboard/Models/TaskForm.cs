@@ -45,6 +45,21 @@ public class TaskForm : IValidatableObject
             : null,
     };
 
+    /// <summary>Copies another form's values in place. The page holds one form
+    /// instance and reuses it for every add and edit, so this must assign
+    /// <em>every</em> field: an omission does not merely fail to load a value,
+    /// it leaves the previous task's value in place to be saved onto this one.
+    /// Keep it in step with <see cref="From"/> — adding a property is always
+    /// two edits, here and there.</summary>
+    public void CopyFrom(TaskForm source)
+    {
+        Title = source.Title;
+        Deadline = source.Deadline;
+        NotBefore = source.NotBefore;
+        Priority = source.Priority;
+        EstimatedMinutes = source.EstimatedMinutes;
+    }
+
     public void Reset()
     {
         Title = string.Empty;
