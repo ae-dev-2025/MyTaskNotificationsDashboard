@@ -125,6 +125,39 @@
         <span class="cal-zoom-cap" aria-hidden="true">−</span>
     </div>
 }
+
+@* Control panel: what the grid draws, beside the grid it draws on. Collapses
+   to its handle rather than disappearing, so the way back is the spot it left
+   — the same bargain the sidebar's collapse handle makes. *@
+<div class="cal-panel @(panelCollapsed ? "collapsed" : null)">
+    <button type="button"
+            class="cal-panel-handle"
+            aria-expanded="@(!panelCollapsed)"
+            aria-label="@PanelToggleLabel"
+            title="@PanelToggleLabel"
+            @onclick="() => panelCollapsed = !panelCollapsed">
+        <span class="cal-panel-grip" aria-hidden="true">@(panelCollapsed ? "‹" : "›")</span>
+    </button>
+
+    @if (!panelCollapsed)
+    {
+        <div class="cal-panel-body">
+            <h2 class="cal-panel-title">Show</h2>
+
+            <label class="cal-panel-check">
+                <input type="checkbox"
+                       class="cal-deadline-toggle"
+                       checked="@Todos.ShowCalendarDeadlines"
+                       @onchange="OnDeadlinesShownChangedAsync" />
+                <span>Deadlines</span>
+            </label>
+            <small class="cal-panel-hint">
+                Dashed markers where a task is due. Hiding them leaves the
+                planned slots on their own; the deadlines still drive the plan.
+            </small>
+        </div>
+    }
+</div>
 </div>
 
 @code {
@@ -167,6 +200,14 @@
 
     private ElementReference scrollArea;
     private readonly PeriodicTimer clock = new(TimeSpan.FromSeconds(60));
+
+    // Session-only, like the sidebar's collapse: the panel is chrome, and what
+    // it controls is persisted anyway, so a collapsed panel need not outlive
+    // the launch. Opens expanded so the controls announce themselves once.
+    private bool panelCollapsed;
+
+    private string PanelToggleLabel =>
+        panelCollapsed ? "Show calendar controls" : "Hide calendar controls";
 
     private static DateTime Today => DateTime.Today;
 
@@ -279,6 +320,14 @@
         pendingZoomFactor = (pendingZoomFactor ?? 1) * (px / HourPx);
         HourPx = px;
         return Task.CompletedTask;
+    }
+
+    private async Task OnDeadlinesShownChangedAsync(ChangeEventArgs e)
+    {
+        if (e.Value is bool shown)
+        {
+            await Todos.SetShowCalendarDeadlinesAsync(shown);
+        }
     }
 
     private async Task TickAsync()
@@ -497,6 +546,14 @@
         var dayStart = new DateTimeOffset(day, DateTimeOffset.Now.Offset);
         var dayEnd = dayStart.AddDays(1);
         var markers = new List<Marker>();
+
+        // Hidden from the control panel means no markers at all, not markers
+        // hidden by CSS: the emptiness check counts them, and a day holding
+        // nothing but invisible markers must read as empty.
+        if (!Todos.ShowCalendarDeadlines)
+        {
+            return markers;
+        }
 
         foreach (var task in Todos.Items.Where(t => !t.IsDone && t.Deadline is not null))
         {

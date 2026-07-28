@@ -1065,6 +1065,32 @@ if (mode == "calendar")
         await Expect(page.Locator(".cal-deadline").First).ToBeVisibleAsync();
     });
 
+    await Step("calendar: control panel hides and restores deadline markers", async () =>
+    {
+        // Whatever the grid shows now is the baseline — the marker may be on
+        // next week (see the step above), and the toggle must put back exactly
+        // what it took away either way.
+        var before = await page.Locator(".cal-deadline").CountAsync();
+
+        await page.Locator(".cal-deadline-toggle").ClickAsync();
+        await Expect(page.Locator(".cal-deadline")).ToHaveCountAsync(0);
+
+        await page.Locator(".cal-deadline-toggle").ClickAsync();
+        await Expect(page.Locator(".cal-deadline")).ToHaveCountAsync(before);
+    });
+
+    await Step("calendar: control panel collapses to its handle", async () =>
+    {
+        await page.GetByRole(AriaRole.Button, new() { Name = "Hide calendar controls" }).ClickAsync();
+        await Expect(page.Locator(".cal-panel-body")).ToHaveCountAsync(0);
+        // The handle survives the collapse — it is the way back.
+        await Expect(page.GetByRole(AriaRole.Button, new() { Name = "Show calendar controls" }))
+            .ToHaveCountAsync(1);
+
+        await page.GetByRole(AriaRole.Button, new() { Name = "Show calendar controls" }).ClickAsync();
+        await Expect(page.Locator(".cal-panel-body")).ToHaveCountAsync(1);
+    });
+
     await Step("calendar: now line drawn on today", () =>
         Expect(page.Locator(".cal-now-line")).ToHaveCountAsync(1));
 

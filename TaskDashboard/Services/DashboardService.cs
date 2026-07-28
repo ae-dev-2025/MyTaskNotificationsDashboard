@@ -318,6 +318,14 @@ public class DashboardService
         await SaveAsync();
     }
 
+    public bool ShowCalendarDeadlines => data.ShowCalendarDeadlines;
+
+    public async Task SetShowCalendarDeadlinesAsync(bool shown)
+    {
+        data.ShowCalendarDeadlines = shown;
+        await SaveAsync();
+    }
+
     public bool CollapseNavToIcons => data.CollapseNavToIcons;
 
     public async Task SetCollapseNavToIconsAsync(bool iconsOnly)

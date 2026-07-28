@@ -118,6 +118,11 @@ added later by restoring their target frameworks in
   toolbar. The narrow views anchor on today and give every column seven
   times or twice the width, which is the difference between a truncated
   title and a readable one on a tablet
+- **Calendar control panel**: a collapsible panel down the calendar's right
+  edge for what the grid draws. Deadline markers can be switched off there
+  when the flags crowd the plan — the deadlines still drive the schedule, they
+  just stop drawing — and the choice is remembered. Collapsing leaves the
+  panel's handle in place, so the way back is where the way out was
 - **Calendar zoom**: a vertical slider beside the grid (on the right)
   stretches or compresses the hours, and taller blocks spend the extra room
   on their titles — text wraps to as many whole lines as the block affords.
