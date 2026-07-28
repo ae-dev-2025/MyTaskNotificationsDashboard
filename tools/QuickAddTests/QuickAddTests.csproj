@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!--
+    The app targets only MAUI frameworks (net10.0-android, net10.0-windows...),
+    which a plain net10.0 project cannot reference. QuickAdd is deliberately
+    pure C# with no MAUI dependency, so the two files it needs are linked in
+    and compiled here directly. If this ever fails to compile, the parser has
+    grown a platform dependency it should not have — that is a feature of this
+    arrangement, not a nuisance.
+  -->
+  <ItemGroup>
+    <Compile Include="../../TaskDashboard/Services/QuickAdd.cs" Link="QuickAdd.cs" />
+    <Compile Include="../../TaskDashboard/Models/TaskPriority.cs" Link="TaskPriority.cs" />
+  </ItemGroup>
+
+</Project>

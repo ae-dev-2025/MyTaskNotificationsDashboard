@@ -1,14 +1,67 @@
-@* The four editable task fields with visible labels, shared by the add and
+@using TaskDashboard.Services
+
+@* The five editable task fields with visible labels, shared by the add and
    edit flows via TaskModal. *@
 
 <div class="task-fields">
     <div class="field">
-        <label for="task-title">Title</label>
-        <InputText id="task-title"
-                   @ref="titleInput"
-                   @bind-Value="Form.Title"
-                   class="form-control"
-                   placeholder="What needs doing?" />
+        <div class="field-label-row">
+            <label for="task-title">Title</label>
+            @if (QuickAddEnabled)
+            {
+                @* Sits beside the label, where someone typing a title will see
+                   it, and stays shut until asked. The preview under the box
+                   teaches the syntax once you are using it; this is what tells
+                   you the syntax exists in the first place. *@
+                <button type="button"
+                        class="quick-add-help-toggle"
+                        aria-expanded="@showSyntax"
+                        @onclick="() => showSyntax = !showSyntax">
+                    Quick add syntax
+                </button>
+            }
+        </div>
+
+        @* A plain input rather than InputText: quick-add needs @oninput to
+           parse as you type, and InputText's @bind-Value also writes on
+           change, which would put the raw line back over the stripped title
+           the moment the box lost focus. Validation still runs off the model,
+           so ValidationSummary is unaffected. *@
+        <input id="task-title"
+               @ref="titleElement"
+               type="text"
+               class="form-control"
+               placeholder="@(QuickAddEnabled ? "What needs doing? Try \"by fri 17:00 !high 45m\"" : "What needs doing?")"
+               value="@rawTitle"
+               @oninput="OnTitleInput" />
+
+        @if (QuickAddEnabled && showSyntax)
+        {
+            <div class="quick-add-syntax">
+                <p class="quick-add-syntax-lede">
+                    Type these anywhere in the title and they are lifted out into
+                    the fields below. Anything unrecognised stays in the title.
+                </p>
+                <dl>
+                    @foreach (var (syntax, meaning) in SyntaxHelp)
+                    {
+                        <dt><code>@syntax</code></dt>
+                        <dd>@meaning</dd>
+                    }
+                </dl>
+            </div>
+        }
+
+        @if (QuickAddEnabled && parsed.FoundFields)
+        {
+            <small class="quick-add-preview">
+                Read as: <span class="quick-add-title">@(string.IsNullOrWhiteSpace(parsed.Title) ? "(no title yet)" : parsed.Title)</span>
+                @foreach (var chip in PreviewChips)
+                {
+                    <span class="quick-add-chip">@chip</span>
+                }
+            </small>
+        }
     </div>
 
     <div class="field">
@@ -16,6 +69,7 @@
         <InputDate id="task-deadline"
                    Type="InputDateType.DateTimeLocal"
                    @bind-Value="Form.Deadline"
+                   @bind-Value:after="() => deadlinePinned = true"
                    class="form-control" />
     </div>
 
@@ -24,6 +78,7 @@
         <InputDate id="task-notbefore"
                    Type="InputDateType.DateTimeLocal"
                    @bind-Value="Form.NotBefore"
+                   @bind-Value:after="() => notBeforePinned = true"
                    class="form-control" />
         <small class="field-hint">Earliest moment the planner may schedule this task</small>
     </div>
@@ -32,6 +87,7 @@
         <label for="task-priority">Priority</label>
         <InputSelect id="task-priority"
                      @bind-Value="Form.Priority"
+                     @bind-Value:after="() => priorityPinned = true"
                      class="form-select">
             @foreach (var priority in Enum.GetValues<TaskPriority>())
             {
@@ -44,6 +100,7 @@
         <label for="task-estimate">Estimate (mins)</label>
         <InputNumber id="task-estimate"
                      @bind-Value="Form.EstimatedMinutes"
+                     @bind-Value:after="() => estimatePinned = true"
                      class="form-control"
                      placeholder="e.g. 30"
                      min="1" />
@@ -54,14 +111,131 @@
     [Parameter, EditorRequired]
     public TaskForm Form { get; set; } = default!;
 
-    private InputText? titleInput;
+    /// <summary>Whether the title box also reads quick-add syntax. Add flow
+    /// only: an existing task's title is text the user already committed to,
+    /// and re-parsing it would rewrite fields they never asked to change.</summary>
+    [Parameter]
+    public bool QuickAddEnabled { get; set; }
 
-    /// <summary>Moves focus to the title box. Called by the modal when it opens.</summary>
-    public async ValueTask FocusTitleAsync()
+    private ElementReference titleElement;
+
+    /// <summary>Exactly what is in the box. Kept apart from
+    /// <c>Form.Title</c>, which holds the line with recognised tokens removed:
+    /// rewriting the input while someone is typing in it is intolerable. </summary>
+    private string rawTitle = string.Empty;
+
+    private QuickAddResult parsed;
+
+    private bool showSyntax;
+
+    /// <summary>The reference shown by the syntax toggle. Kept beside the
+    /// parser's own grammar so the two are edited together — documentation
+    /// that drifts from the thing it documents is worse than none.</summary>
+    private static readonly (string Syntax, string Meaning)[] SyntaxHelp =
+    [
+        ("by tomorrow 17:00", "Deadline. Also \"due\"."),
+        ("after mon 09:00", "Earliest start the planner may use. Also \"from\"."),
+        ("!high", "Priority: !low, !normal, !high, !urgent — or just !l !n !h !u."),
+        ("45m  ·  2h  ·  1h30", "Estimate. A unit is required, so a bare number stays in the title."),
+        ("today · tomorrow · fri · next tue", "Days. A day on its own means the end of it for a deadline, the start of it for an earliest start."),
+        ("31/7 · 15 aug · 2026-08-15", "Dates, read day-first."),
+        ("17:00 · 5pm · 5:30pm", "Times. A bare number is never read as a time."),
+    ];
+
+    // A field the user has set by hand is theirs. Without these, the next
+    // keystroke in the title would silently overwrite a deliberate choice —
+    // the same shape of bug as the not-before value that used to leak between
+    // tasks, one shared form written from two directions.
+    private bool deadlinePinned;
+    private bool notBeforePinned;
+    private bool priorityPinned;
+    private bool estimatePinned;
+
+    protected override void OnInitialized() => rawTitle = Form.Title;
+
+    private void OnTitleInput(ChangeEventArgs e)
     {
-        if (titleInput?.Element is { } element)
+        rawTitle = e.Value?.ToString() ?? string.Empty;
+
+        if (!QuickAddEnabled)
         {
-            await element.FocusAsync();
+            Form.Title = rawTitle;
+            return;
+        }
+
+        var next = QuickAdd.Parse(rawTitle, DateTimeOffset.Now);
+        Form.Title = next.Title;
+
+        // The parser only ever owns what it put there. It writes what it finds,
+        // and clears a field only when its own previous parse had set it — so
+        // deleting "by fri" removes that deadline, while an estimate that came
+        // from a preset or from the user survives the next keystroke.
+        if (!deadlinePinned && (next.Deadline is not null || parsed.Deadline is not null))
+        {
+            Form.Deadline = next.Deadline;
+        }
+
+        if (!notBeforePinned && (next.NotBefore is not null || parsed.NotBefore is not null))
+        {
+            Form.NotBefore = next.NotBefore;
+        }
+
+        if (!estimatePinned && (next.EstimatedMinutes is not null || parsed.EstimatedMinutes is not null))
+        {
+            Form.EstimatedMinutes = next.EstimatedMinutes;
+        }
+
+        // Priority has no empty state, so only a positive match writes to it.
+        if (!priorityPinned && next.Priority is { } priority)
+        {
+            Form.Priority = priority;
+        }
+
+        parsed = next;
+    }
+
+    /// <summary>Re-reads the form into the title box, and forgets what the
+    /// parser had claimed. Called when something other than typing fills the
+    /// form — applying a preset — because the box holds the line as typed
+    /// rather than <c>Form.Title</c>, and would otherwise go on showing stale
+    /// text over freshly filled fields.</summary>
+    public void SyncFromForm()
+    {
+        rawTitle = Form.Title;
+        parsed = default;
+        StateHasChanged();
+    }
+
+    private IEnumerable<string> PreviewChips
+    {
+        get
+        {
+            if (parsed.Deadline is { } due)
+            {
+                yield return $"due {due.LocalDateTime:ddd d MMM, HH:mm}";
+            }
+
+            if (parsed.NotBefore is { } from)
+            {
+                yield return $"from {from.LocalDateTime:ddd d MMM, HH:mm}";
+            }
+
+            if (parsed.Priority is { } priority)
+            {
+                yield return priority.ToString();
+            }
+
+            if (parsed.EstimatedMinutes is { } minutes)
+            {
+                yield return minutes >= 60 && minutes % 60 == 0
+                    ? $"{minutes / 60}h"
+                    : minutes > 60
+                        ? $"{minutes / 60}h {minutes % 60}m"
+                        : $"{minutes}m";
+            }
         }
     }
+
+    /// <summary>Moves focus to the title box. Called by the modal when it opens.</summary>
+    public async ValueTask FocusTitleAsync() => await titleElement.FocusAsync();
 }
