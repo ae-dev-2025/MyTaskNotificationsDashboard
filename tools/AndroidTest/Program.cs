@@ -290,6 +290,17 @@ await Step("calendar: zoom slider rescales the grid", async () =>
     await WaitFor("Math.abs(document.querySelector('.cal-grid').getBoundingClientRect().height - 24 * 48) < 3", "grid back at default");
 });
 
+await Step("calendar: day and 3-day views narrow the span", async () =>
+{
+    await NavTo("calendar", "Calendar");
+    await Click(".cal-view-day");
+    await WaitFor("document.querySelectorAll('.cal-day').length === 1", "one day column");
+    await Click(".cal-view-3day");
+    await WaitFor("document.querySelectorAll('.cal-day').length === 3", "three day columns");
+    await Click(".cal-view-week");
+    await WaitFor("document.querySelectorAll('.cal-day').length === 7", "week restored");
+});
+
 await Step("blocked: add recurring Sleep period clear of now", async () =>
 {
     // Clock-relative window (now+3h .. now+11h) so the fixture can never
