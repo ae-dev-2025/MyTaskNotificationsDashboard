@@ -1037,6 +1037,31 @@ if (mode == "calendar")
     await Step("calendar: now line drawn on today", () =>
         Expect(page.Locator(".cal-now-line")).ToHaveCountAsync(1));
 
+    await Step("calendar: zoom slider rescales the grid", async () =>
+    {
+        async Task<double> GridHeight() =>
+            await page.EvalOnSelectorAsync<double>(".cal-grid", "el => el.getBoundingClientRect().height");
+
+        async Task SetZoom(string px) =>
+            await page.EvalOnSelectorAsync(".cal-zoom-slider",
+                $"el => {{ el.value = '{px}'; el.dispatchEvent(new Event('input', {{ bubbles: true }})); }}");
+
+        var before = await GridHeight();
+        await SetZoom("96");
+        await page.WaitForTimeoutAsync(300);
+        var after = await GridHeight();
+
+        // Restore the default before asserting: later steps (and other modes)
+        // do pixel maths that assumes the 48px scale.
+        await SetZoom("48");
+        await page.WaitForTimeoutAsync(300);
+
+        if (Math.Abs(before - 24 * 48) > 2 || Math.Abs(after - 24 * 96) > 2)
+        {
+            throw new Exception($"grid height before/after zoom = {before}/{after}; expected 1152/2304");
+        }
+    });
+
     // Scroll the grid so the slots planned from "now" are actually in frame.
     await page.EvalOnSelectorAsync(".cal-scroll",
         "el => { el.scrollTop = Math.max(0, (new Date().getHours() - 1.5) * 48); }");

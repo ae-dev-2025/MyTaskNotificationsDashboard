@@ -7,13 +7,48 @@
 .cal-toolbar {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
     margin: 0.75rem 0;
+}
+
+.cal-body {
+    display: flex;
+    align-items: stretch;
+    gap: 0.4rem;
+}
+
+/* Vertical zoom slider. `writing-mode` turns the native range control on its
+   side; `direction: rtl` puts max at the top so dragging up zooms in, matching
+   the + cap above it. */
+.cal-zoom {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.3rem 0;
+    width: 1.5rem;
+    color: var(--text-faint);
+    font-size: 0.8rem;
+    font-weight: 700;
+    user-select: none;
+}
+
+.cal-zoom-slider {
+    flex: 1;
+    writing-mode: vertical-lr;
+    direction: rtl;
+    width: 1.1rem;
+    accent-color: var(--accent);
+    cursor: pointer;
 }
 
 /* The header lives INSIDE the scroll container so its columns share the
    scrollbar context with the grid — alignment by construction. */
 .cal-scroll {
+    flex: 1;
+    min-width: 0;
     height: 62vh;
     overflow-y: auto;
     border: 1px solid var(--border);
@@ -49,10 +84,13 @@
     font-weight: 700;
 }
 
+/* --hour-px is stamped inline on .cal-scroll by the zoom slider; the grid,
+   its hairlines and every block position derive from the same value, so the
+   scale cannot drift apart between C# and CSS. */
 .cal-grid {
     display: grid;
     grid-template-columns: 3.5rem repeat(7, 1fr);
-    height: calc(24 * 48px);
+    height: calc(24 * var(--hour-px, 48px));
 }
 
 .cal-gutter {
@@ -70,20 +108,21 @@
 .cal-day {
     position: relative;
     border-left: 1px solid var(--border-subtle);
-    /* Hairline every hour, a firmer line every three. */
+    /* Hairline every hour, a firmer line every three — both tied to the same
+       --hour-px the blocks use, so the ruling tracks the zoom. */
     background-image:
         repeating-linear-gradient(
             to bottom,
             transparent 0,
-            transparent 143px,
-            var(--border-subtle) 143px,
-            var(--border-subtle) 144px),
+            transparent calc(3 * var(--hour-px, 48px) - 1px),
+            var(--border-subtle) calc(3 * var(--hour-px, 48px) - 1px),
+            var(--border-subtle) calc(3 * var(--hour-px, 48px))),
         repeating-linear-gradient(
             to bottom,
             transparent 0,
-            transparent 47px,
-            var(--hairline) 47px,
-            var(--hairline) 48px);
+            transparent calc(var(--hour-px, 48px) - 1px),
+            var(--hairline) calc(var(--hour-px, 48px) - 1px),
+            var(--hairline) var(--hour-px, 48px));
 }
 
 .cal-day.weekend {
@@ -120,15 +159,19 @@
     flex: none;
 }
 
-/* One line, always whole, always ellipsised. Wrapping to a second line reads
-   better in the rare block tall enough for it, but it cannot be done reliably:
-   the row is clipped by the block's own height, so a title that wraps loses its
-   tail with no ellipsis to say so. A single truncated line never lies. */
+/* The title wraps to exactly the whole lines the block's height affords —
+   --title-lines is computed per block in C#, so the clamp is sized to space
+   that actually exists. Clamping against the box itself is what used to cut
+   titles mid-word: the box's height said two lines when there was room for
+   one. `break-word`, not `anywhere` — anywhere feeds min-content sizing and
+   splits words that would have fitted on a line of their own. */
 .cal-block-title {
     flex: none;
-    white-space: nowrap;
+    display: -webkit-box;
+    -webkit-line-clamp: var(--title-lines, 1);
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
+    overflow-wrap: break-word;
 }
 
 /* Too short for two rows, so everything collapses onto one and ellipsises
