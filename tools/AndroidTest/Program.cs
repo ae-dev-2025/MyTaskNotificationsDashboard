@@ -94,7 +94,10 @@ async Task AddTask(string title, string? priority, string? estimate)
 {
     await Click(".task-toolbar button");
     await WaitFor("document.querySelector('.modal-panel')", "modal open");
-    await SetValue("#task-title", title);
+    // The title box is quick-add's input and listens for 'input', not
+    // 'change' — real typing and pasting both fire it, but a dispatched
+    // 'change' alone leaves Form.Title empty and validation blocks the save.
+    await TypeValue("#task-title", title);
     if (priority is not null) await SetValue("#task-priority", priority);
     if (estimate is not null) await SetValue("#task-estimate", estimate);
     await Click(".modal-panel button[type=submit]");
