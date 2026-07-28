@@ -42,6 +42,12 @@ public class DashboardData
     /// the property and default to shown.</summary>
     public bool ShowCalendarZoom { get; set; } = true;
 
+    /// <summary>Whether the calendar draws deadline markers. Toggled from the
+    /// calendar's own control panel; persisted so a grid deliberately cleared of
+    /// markers stays that way. Older files lack the property and default to
+    /// shown, which is the behaviour before the panel existed.</summary>
+    public bool ShowCalendarDeadlines { get; set; } = true;
+
     /// <summary>Whether collapsing the sidebar leaves an icon rail rather than
     /// hiding it entirely. Defaults to fully hidden, the original behaviour,
     /// which is also what an older file deserializes to.</summary>

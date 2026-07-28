@@ -44,6 +44,102 @@
     cursor: pointer;
 }
 
+/* Control panel: a fixed-width column beside the grid, carrying the switches
+   for what the grid draws. It collapses to its handle rather than vanishing,
+   so the control that brings it back sits exactly where the one that hid it
+   was — the sidebar's collapse handle makes the same bargain. */
+.cal-panel {
+    flex: none;
+    display: flex;
+    align-items: stretch;
+    gap: 0.4rem;
+}
+
+/* Full-height strip, not a floating button: it cannot cover a block, and it
+   holds still across collapse and expand. */
+.cal-panel-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 1.25rem;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.cal-panel-grip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1rem;
+    height: 3.25rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--label);
+    font-size: 1rem;
+    font-weight: 700;
+    box-shadow: var(--shadow);
+}
+
+.cal-panel-handle:hover .cal-panel-grip {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+}
+
+.cal-panel-body {
+    flex: none;
+    width: 11rem;
+    overflow-y: auto;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--chrome);
+}
+
+.cal-panel-title {
+    margin: 0 0 0.4rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.cal-panel-check {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.cal-panel-check input {
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.cal-panel-hint {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: var(--text-muted);
+}
+
+/* Narrow screens give the grid the room instead — the panel keeps its handle,
+   so the controls are one tap away rather than gone. */
+@media (max-width: 640px) {
+    .cal-panel-body {
+        width: 9rem;
+    }
+}
+
 /* The header lives INSIDE the scroll container so its columns share the
    scrollbar context with the grid — alignment by construction. */
 .cal-scroll {
