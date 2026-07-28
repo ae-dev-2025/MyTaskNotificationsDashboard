@@ -37,4 +37,13 @@ public class DashboardData
     /// right now (Android only). Older files lack the property and default
     /// to on.</summary>
     public bool ShowCurrentTaskNotification { get; set; } = true;
+
+    /// <summary>Whether the calendar shows its zoom slider. Older files lack
+    /// the property and default to shown.</summary>
+    public bool ShowCalendarZoom { get; set; } = true;
+
+    /// <summary>Whether collapsing the sidebar leaves an icon rail rather than
+    /// hiding it entirely. Defaults to fully hidden, the original behaviour,
+    /// which is also what an older file deserializes to.</summary>
+    public bool CollapseNavToIcons { get; set; }
 }

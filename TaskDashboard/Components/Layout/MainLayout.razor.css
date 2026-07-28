@@ -13,6 +13,39 @@ main {
     border-right: 1px solid var(--border);
 }
 
+.page.nav-hidden .sidebar {
+    display: none;
+}
+
+/* Icon rail: the collapsed form when CollapseNavToIcons is on. Labels vanish
+   by zeroing the font — the text nodes collapse while the mask icons keep
+   their rem-sized boxes — so the nav stays clickable and the active accent
+   stays visible. ::deep because NavMenu's markup is a child component and
+   these rules ride on MainLayout's own .sidebar wrapper. */
+@media (min-width: 641px) {
+    .page.nav-icons .sidebar {
+        width: 3.6rem;
+    }
+
+    .page.nav-icons .sidebar ::deep .nav-link {
+        font-size: 0;
+    }
+
+    .page.nav-icons .sidebar ::deep .bi {
+        margin-right: 0;
+    }
+
+    .page.nav-icons .sidebar ::deep .navbar-brand {
+        font-size: 0;
+    }
+}
+
+/* Hidden on the narrow layout: the sidebar is a top bar there with its own
+   hamburger, so a second collapse control would just compete with it. */
+.nav-collapse {
+    display: none;
+}
+
 /* MainLayout renders no top bar — the stock template's `.top-row` rules (and
    the auth variants that came with them) styled an element this app removed,
    so they are gone rather than tokenised. NavMenu keeps its own `.top-row`
@@ -28,6 +61,46 @@ main {
         height: 100vh;
         position: sticky;
         top: 0;
+    }
+
+    .nav-collapse {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: none;
+        width: 1.25rem;
+        height: 100vh;
+        position: sticky;
+        top: 0;
+        padding: 0;
+        border: none;
+        border-right: 1px solid var(--border);
+        background: var(--chrome);
+        cursor: pointer;
+    }
+
+    /* The whole strip is the click target; the grip is the affordance — a
+       visible pill at mid-height, like a drawer handle, rather than a bare
+       glyph that disappears into the chrome. */
+    .nav-collapse-grip {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.1rem;
+        height: 3.25rem;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--label);
+        font-size: 1rem;
+        font-weight: 700;
+        box-shadow: var(--shadow);
+    }
+
+    .nav-collapse:hover .nav-collapse-grip {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--on-accent);
     }
 
     article {

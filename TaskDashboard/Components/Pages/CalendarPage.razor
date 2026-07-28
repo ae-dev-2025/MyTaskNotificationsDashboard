@@ -108,19 +108,23 @@
     }
 </div>
 
-@* Vertical zoom: taller hours give every block more room for its text.
-   Outside the scroll container so it never scrolls away; on the right, so
-   the hour gutter keeps the left edge. *@
-<div class="cal-zoom" title="Zoom: taller hours give tasks more room">
-    <span class="cal-zoom-cap" aria-hidden="true">+</span>
-    <input type="range"
-           class="cal-zoom-slider"
-           min="@MinHourPx" max="@MaxHourPx" step="8"
-           value="@HourPx"
-           aria-label="Zoom calendar"
-           @oninput="OnZoomAsync" />
-    <span class="cal-zoom-cap" aria-hidden="true">−</span>
-</div>
+@if (Todos.ShowCalendarZoom)
+{
+    @* Vertical zoom: taller hours give every block more room for its text.
+       Outside the scroll container so it never scrolls away; on the right by
+       preference, so the hour gutter keeps the left edge. Toggleable from the
+       Settings page — hiding it keeps the zoom level, not just the control. *@
+    <div class="cal-zoom" title="Zoom: taller hours give tasks more room">
+        <span class="cal-zoom-cap" aria-hidden="true">+</span>
+        <input type="range"
+               class="cal-zoom-slider"
+               min="@MinHourPx" max="@MaxHourPx" step="8"
+               value="@HourPx"
+               aria-label="Zoom calendar"
+               @oninput="OnZoomAsync" />
+        <span class="cal-zoom-cap" aria-hidden="true">−</span>
+    </div>
+}
 </div>
 
 @code {

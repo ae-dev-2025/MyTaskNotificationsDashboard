@@ -540,6 +540,10 @@ if (mode == "capture")
         await page.WaitForTimeoutAsync(400);
         await Shot($"7-presets-{theme}.png");
 
+        await NavTo("Settings", "Settings");
+        await page.WaitForTimeoutAsync(400);
+        await Shot($"9-settings-{theme}.png");
+
         // The picker is the point of presets, and it only exists inside the
         // add dialog, so photograph it there rather than settling for the
         // management page alone.
@@ -557,7 +561,7 @@ if (mode == "capture")
     await Capture("light");
     await Capture("dark");
     await page.EvaluateAsync("taskDashboard.applyTheme('system')");
-    Console.WriteLine($"CAPTURED 16 screenshots to {shotDir}");
+    Console.WriteLine($"CAPTURED 18 screenshots to {shotDir}");
     return 0;
 }
 
@@ -1053,6 +1057,21 @@ if (mode == "calendar")
         await Expect(page.Locator(".cal-day.today")).ToHaveCountAsync(1);
     });
 
+    await Step("settings: hides the zoom slider and brings it back", async () =>
+    {
+        await Expect(page.Locator(".cal-zoom-slider")).ToHaveCountAsync(1);
+
+        await NavTo("Settings", "Settings");
+        await page.GetByLabel("Show the calendar zoom slider").ClickAsync();
+        await NavTo("Calendar", "Calendar");
+        await Expect(page.Locator(".cal-zoom-slider")).ToHaveCountAsync(0);
+
+        await NavTo("Settings", "Settings");
+        await page.GetByLabel("Show the calendar zoom slider").ClickAsync();
+        await NavTo("Calendar", "Calendar");
+        await Expect(page.Locator(".cal-zoom-slider")).ToHaveCountAsync(1);
+    });
+
     await Step("calendar: zoom slider rescales the grid", async () =>
     {
         async Task<double> GridHeight() =>
@@ -1286,6 +1305,32 @@ await Step("cleanup: remove the not-before fixtures", async () =>
 await Step("footer: totals only the remaining estimate", () =>
     Expect(footer).ToContainTextAsync("1 task left"));
 
+await Step("nav: sidebar hides and returns", async () =>
+{
+    await page.GetByRole(AriaRole.Button, new() { Name = "Hide navigation", Exact = true }).ClickAsync();
+    await Expect(page.Locator(".sidebar")).ToBeHiddenAsync();
+    await page.GetByRole(AriaRole.Button, new() { Name = "Show navigation", Exact = true }).ClickAsync();
+    await Expect(page.Locator(".sidebar")).ToBeVisibleAsync();
+});
+
+await Step("nav: icons setting collapses to a rail instead", async () =>
+{
+    await NavTo("Settings", "Settings");
+    await page.GetByLabel("Collapse the sidebar to icons").ClickAsync();
+    await NavTo("Tasks", "Tasks");
+
+    await page.GetByRole(AriaRole.Button, new() { Name = "Hide navigation", Exact = true }).ClickAsync();
+    // The rail keeps the sidebar visible but narrow; the label text collapses
+    // with the font, so the link's accessible name survives for the nav.
+    await Expect(page.Locator(".page.nav-icons")).ToHaveCountAsync(1);
+    await Expect(page.Locator(".sidebar")).ToBeVisibleAsync();
+    await page.GetByRole(AriaRole.Button, new() { Name = "Show navigation", Exact = true }).ClickAsync();
+    await Expect(page.Locator(".page.nav-icons")).ToHaveCountAsync(0);
+
+    await NavTo("Settings", "Settings");
+    await page.GetByLabel("Collapse the sidebar to icons").ClickAsync();
+    await NavTo("Tasks", "Tasks");
+});
 await Shot("ui-04-final.png");
 
 Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
