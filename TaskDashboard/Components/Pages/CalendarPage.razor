@@ -33,6 +33,15 @@
             {
                 <div class="cal-hour-label" style="top:@(h * HourPx)px">@($"{h:00}:00")</div>
             }
+
+            @* The current time reads in the gutter, beside the hour labels it
+               belongs with. It used to be a pill on the line itself, which sat
+               on top of whatever block the line crossed and covered exactly the
+               row carrying that block's time, late tag and title. *@
+            @if (IsCurrentWeek)
+            {
+                <div class="cal-now-label" style="top:@(NowOffsetPx)px">@DateTime.Now.ToString("HH:mm")</div>
+            }
         </div>
 
         @foreach (var day in week.Days)
@@ -40,17 +49,18 @@
             <div class="cal-day @(day.IsToday ? "today" : null) @(day.IsWeekend ? "weekend" : null)">
                 @foreach (var block in day.Blocks)
                 {
-                    <div class="@block.Css"
+                    <div class="@block.CssClass"
                          style="top:@(block.Top)px;height:@(block.Height)px;@block.LaneStyle"
                          title="@block.Tooltip">
-                        <span class="cal-block-time">@block.TimeText</span>
-                        @if (block.Late)
-                        {
-                            @* First line, beside the time: the title wraps and
-                               deadline markers overlay lower lines, so this is
-                               the one row that is always legible. *@
-                            <span class="cal-late">late</span>
-                        }
+                        <span class="cal-block-head">
+                            <span class="cal-block-time">@block.TimeText</span>
+                            @if (block.Late)
+                            {
+                                @* Ahead of the title in source order, so a
+                                   truncating title can never eat it. *@
+                                <span class="cal-late">late</span>
+                            }
+                        </span>
                         <span class="cal-block-title">@block.Title</span>
                     </div>
                 }
@@ -64,7 +74,7 @@
 
                 @if (day.IsToday)
                 {
-                    <div class="cal-now-line" style="top:@(NowOffsetPx)px" data-time="@DateTime.Now.ToString("HH:mm")"></div>
+                    <div class="cal-now-line" style="top:@(NowOffsetPx)px"></div>
                 }
             </div>
         }
@@ -83,6 +93,13 @@
     /// the 0.72rem block label. Anything shorter is inflated, so pixel maths
     /// over small blocks overstates their real duration.</summary>
     private const double MinBlockPx = 20;
+
+    /// <summary>Height at which a block can show a second line of text. Below
+    /// it the title never renders — the clamp pushes it onto a line the box is
+    /// too short to reveal — so short blocks put the time and title on one line
+    /// and ellipsise instead. One line of 0.75rem at line-height 1.25 plus the
+    /// block's vertical padding is ~18px, so two need ~34.</summary>
+    private const double TwoLinePx = 34;
     private static readonly TimeSpan PlanHorizon = TimeSpan.FromDays(14);
 
     private DateTime weekStart;
@@ -113,6 +130,16 @@
             ? string.Empty
             : $"left:calc(3px + (100% - 6px) * {Lane} / {LaneCount});" +
               $"width:calc((100% - 6px) / {LaneCount} - 2px);";
+
+        /// <summary>True when the block is too short for a second line of text.
+        /// Drives the one-line, ellipsised rendering — the alternative is a
+        /// title clipped out of view entirely, which is what short blocks did.</summary>
+        public bool Compact => Height < TwoLinePx;
+
+        /// <summary>The block's full class list. Built here rather than inline in
+        /// the markup: Razor cannot parse a quoted string inside an attribute
+        /// that is itself quoted.</summary>
+        public string CssClass => Compact ? $"{Css} compact" : Css;
     }
     private sealed record Marker(double Top, string Title, string Tooltip);
     private sealed record DayView(DateTime Date, bool IsToday, bool IsWeekend, List<Block> Blocks, List<Marker> Markers);
