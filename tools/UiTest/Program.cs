@@ -218,8 +218,16 @@ if (mode == "blocked")
     await Step("planner: slot exists and never overlaps blocked time", async () =>
     {
         // The invariant that holds at any hour: the planned slot may land
-        // after the lunch block or on a later day, but it must never overlap
-        // a blocked range in its own column.
+        // after the lunch block or on a later day — including next week's
+        // grid, when the lunch block pushes it past a Sunday midnight. The
+        // overlap check itself is column-local, so it is valid on whichever
+        // week the slot renders.
+        if (await page.Locator(".cal-slot", new() { HasTextString = "Deep work" }).CountAsync() == 0)
+        {
+            await page.GetByRole(AriaRole.Button, new() { Name = "Next week ›" }).ClickAsync();
+            await page.WaitForTimeoutAsync(400);
+        }
+
         var verdict = await page.EvaluateAsync<string>(
             """
             () => {
@@ -661,11 +669,29 @@ if (mode == "realism")
         await AddTask("Second job", null, null, "30");
     });
 
+    // A slot the visible week doesn't hold may be on next week's grid — a
+    // late-evening run pushes the second task past midnight, and on Sundays
+    // midnight is the week boundary. Same trap as the not-before fixture.
+    async Task<(int Start, int End)> SlotTimesAnyWeek(string exactTitle)
+    {
+        var times = await SlotTimes(exactTitle);
+        if (times is null)
+        {
+            await page.GetByRole(AriaRole.Button, new() { Name = "Next week ›" }).ClickAsync();
+            await page.WaitForTimeoutAsync(300);
+            times = await SlotTimes(exactTitle);
+            await page.GetByRole(AriaRole.Button, new() { Name = "Today", Exact = true }).ClickAsync();
+            await page.WaitForTimeoutAsync(300);
+        }
+
+        return times ?? throw new Exception($"{exactTitle} slot missing from this week and the next");
+    }
+
     await Step("breaks: 15-minute gap between consecutive tasks", async () =>
     {
         await NavTo("Calendar", "Calendar");
-        var first = await SlotTimes("First job") ?? throw new Exception("First job slot missing");
-        var second = await SlotTimes("Second job") ?? throw new Exception("Second job slot missing");
+        var first = await SlotTimesAnyWeek("First job");
+        var second = await SlotTimesAnyWeek("Second job");
         var gap = GapMinutes(first.End, second.Start);
         if (gap < 15) throw new Exception($"gap was {gap} min, expected >= 15");
     });
@@ -674,8 +700,8 @@ if (mode == "realism")
     {
         await SetBreak("30");
         await NavTo("Calendar", "Calendar");
-        var first = await SlotTimes("First job") ?? throw new Exception("First job slot missing");
-        var second = await SlotTimes("Second job") ?? throw new Exception("Second job slot missing");
+        var first = await SlotTimesAnyWeek("First job");
+        var second = await SlotTimesAnyWeek("Second job");
         var gap = GapMinutes(first.End, second.Start);
         if (gap < 30) throw new Exception($"gap was {gap} min after setting 30");
     });
@@ -723,6 +749,9 @@ if (mode == "realism")
         if (thisWeek == "false,false")
         {
             await page.GetByRole(AriaRole.Button, new() { Name = "Next week ›" }).ClickAsync();
+            // Let the re-render land before reading — with a fuller task list
+            // the immediate evaluate raced the render and read the old grid.
+            await page.WaitForTimeoutAsync(400);
             var nextWeek = await Placement();
             await page.GetByRole(AriaRole.Button, new() { Name = "Today", Exact = true }).ClickAsync();
 
@@ -981,8 +1010,29 @@ if (mode == "calendar")
     await Step("calendar: completed task appears as a done block", () =>
         Expect(page.Locator(".cal-done").First).ToContainTextAsync("Email follow-up"));
 
-    await Step("calendar: deadline marker present", () =>
-        Expect(page.Locator(".cal-deadline").First).ToBeVisibleAsync());
+    await Step("calendar: deadline marker present", async () =>
+    {
+        // A deadline of now+30min crosses midnight late in the evening, and on
+        // Sundays midnight is also the week boundary — the marker then draws on
+        // next week's grid. Follow it there before declaring it missing.
+        if (await page.Locator(".cal-deadline").CountAsync() == 0)
+        {
+            await page.GetByRole(AriaRole.Button, new() { Name = "Next week ›" }).ClickAsync();
+            await page.WaitForTimeoutAsync(400);
+            var onNextWeek = await page.Locator(".cal-deadline").CountAsync();
+            await page.GetByRole(AriaRole.Button, new() { Name = "Today", Exact = true }).ClickAsync();
+            await page.WaitForTimeoutAsync(400);
+
+            if (onNextWeek == 0)
+            {
+                throw new Exception("no deadline marker on this week or the next");
+            }
+
+            return;
+        }
+
+        await Expect(page.Locator(".cal-deadline").First).ToBeVisibleAsync();
+    });
 
     await Step("calendar: now line drawn on today", () =>
         Expect(page.Locator(".cal-now-line")).ToHaveCountAsync(1));
@@ -1194,6 +1244,7 @@ await Step("cleanup: remove the not-before fixtures", async () =>
 
 await Step("footer: totals only the remaining estimate", () =>
     Expect(footer).ToContainTextAsync("1 task left"));
+
 await Shot("ui-04-final.png");
 
 Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
