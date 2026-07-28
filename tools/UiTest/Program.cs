@@ -18,6 +18,7 @@ using static Microsoft.Playwright.Assertions;
 //   migrated      — after seeding a legacy v1 tasks.json: asserts it loaded intact
 //   presets       — preset CRUD, the add-dialog picker, and save-as-preset
 //   presetsverify — after an app restart: asserts presets persisted
+//   quickaddshot  — not a test: photographs the add dialog with quick-add open
 // Recommended order: calendar, suite, restart, verify, blocked, restart,
 // blockedverify, migration seed + restart, migrated.
 
@@ -405,6 +406,17 @@ if (mode == "presets")
         await Expect(modal.GetByLabel("Estimate (mins)")).ToHaveValueAsync("15");
     });
 
+    await Step("picker: a preset's values survive later typing in the title", async () =>
+    {
+        // Quick-add parses the title box, and the box is not Form.Title. A
+        // preset therefore has to push its values into the box, and the parser
+        // must not then clear an estimate it never set.
+        await modal.GetByLabel("Title").FillAsync("Daily standup on the patio");
+        await Expect(modal.GetByLabel("Estimate (mins)")).ToHaveValueAsync("15");
+        await Expect(modal.GetByLabel("Priority")).ToHaveValueAsync("Urgent");
+        await modal.GetByLabel("Title").FillAsync("Daily standup");
+    });
+
     await Step("picker: dates are left alone for the user to set", async () =>
     {
         // A preset carries no dates; applying one must not clear a deadline
@@ -478,6 +490,21 @@ if (mode == "presetsverify")
 
     Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
     return failures == 0 ? 0 : 1;
+}
+
+if (mode == "quickaddshot")
+{
+    // Not a test: photographs the add dialog with the syntax reference open
+    // and a line half-typed, for eyeballing the quick-add affordances.
+    Directory.CreateDirectory(shotDir);
+    await OpenAddModal();
+    await modal.GetByRole(AriaRole.Button, new() { Name = "Quick add syntax", Exact = true }).ClickAsync();
+    await modal.GetByLabel("Title").FillAsync("Submit timesheet by fri 17:00 !high 45m");
+    await page.WaitForTimeoutAsync(400);
+    await Shot("quickadd-syntax.png");
+    await CancelModal();
+    Console.WriteLine($"captured quickadd-syntax.png to {shotDir}");
+    return 0;
 }
 
 if (mode == "capture")
@@ -1304,6 +1331,79 @@ await Step("cleanup: remove the not-before fixtures", async () =>
 
 await Step("footer: totals only the remaining estimate", () =>
     Expect(footer).ToContainTextAsync("1 task left"));
+
+// The grammar itself is covered exhaustively by tools/QuickAddTests against a
+// frozen clock. These steps only prove the wiring: that typing reaches the
+// parser, that the parsed values land in the real fields, and that a field the
+// user set by hand is not overwritten by later typing.
+await Step("quick-add: a typed line fills the other fields", async () =>
+{
+    await OpenAddModal();
+    await modal.GetByLabel("Title").FillAsync("Submit timesheet by tomorrow 17:00 !high 45m");
+
+    await Expect(modal.GetByLabel("Title")).ToHaveValueAsync("Submit timesheet by tomorrow 17:00 !high 45m");
+    await Expect(modal.GetByLabel("Priority")).ToHaveValueAsync("High");
+    await Expect(modal.GetByLabel("Estimate (mins)")).ToHaveValueAsync("45");
+    await Expect(modal.GetByLabel("Deadline"))
+        .ToHaveValueAsync(DateTime.Today.AddDays(1).ToString("yyyy-MM-dd") + "T17:00");
+    await Expect(modal.Locator(".quick-add-preview")).ToHaveCountAsync(1);
+});
+
+await Step("quick-add: saving stores the stripped title", async () =>
+{
+    await SaveModal();
+    await Expect(modal).ToHaveCountAsync(0);
+    await Expect(Row("Submit timesheet")).ToHaveCountAsync(1);
+    await Expect(Row("Submit timesheet").Locator(".badge.priority")).ToHaveTextAsync(new Regex("High"));
+    await Expect(Row("Submit timesheet").Locator(".estimate")).ToContainTextAsync("45m");
+});
+
+await Step("quick-add: the syntax reference opens from the dialog", async () =>
+{
+    await OpenAddModal();
+    await Expect(modal.Locator(".quick-add-syntax")).ToHaveCountAsync(0);
+    await modal.GetByRole(AriaRole.Button, new() { Name = "Quick add syntax", Exact = true }).ClickAsync();
+    await Expect(modal.Locator(".quick-add-syntax")).ToHaveCountAsync(1);
+    await Expect(modal.Locator(".quick-add-syntax")).ToContainTextAsync("!high");
+    await modal.GetByRole(AriaRole.Button, new() { Name = "Quick add syntax", Exact = true }).ClickAsync();
+    await Expect(modal.Locator(".quick-add-syntax")).ToHaveCountAsync(0);
+    await CancelModal();
+});
+
+await Step("quick-add: a hand-set field survives later typing", async () =>
+{
+    await OpenAddModal();
+    await modal.GetByLabel("Title").FillAsync("Draft notes 30m");
+    await Expect(modal.GetByLabel("Estimate (mins)")).ToHaveValueAsync("30");
+
+    // Override by hand, then keep typing: the parser must not take it back.
+    await modal.GetByLabel("Estimate (mins)").FillAsync("90");
+    await modal.GetByLabel("Title").FillAsync("Draft notes 30m !low");
+    await Expect(modal.GetByLabel("Estimate (mins)")).ToHaveValueAsync("90");
+    await Expect(modal.GetByLabel("Priority")).ToHaveValueAsync("Low");
+    await CancelModal();
+});
+
+await Step("quick-add: the edit dialog does not re-parse a title", async () =>
+{
+    await Row("Submit timesheet").GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Edit") }).ClickAsync();
+    await Expect(modal.Locator(".quick-add-preview")).ToHaveCountAsync(0);
+
+    // A title that looks like quick-add syntax stays literal when editing.
+    await modal.GetByLabel("Title").FillAsync("Renamed by hand 30m");
+    await Expect(modal.GetByLabel("Estimate (mins)")).ToHaveValueAsync("45");
+    await SaveModal();
+    await Expect(Row("Renamed by hand 30m")).ToHaveCountAsync(1);
+});
+
+await Step("quick-add: cleanup", async () =>
+{
+    await Row("Renamed by hand 30m")
+        .GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Delete") }).ClickAsync();
+    await page.WaitForTimeoutAsync(200);
+    await Expect(page.Locator(".task-item")).ToHaveCountAsync(1);
+    await Expect(Row("Buy milk")).ToHaveCountAsync(1);
+});
 
 await Step("nav: sidebar hides and returns", async () =>
 {

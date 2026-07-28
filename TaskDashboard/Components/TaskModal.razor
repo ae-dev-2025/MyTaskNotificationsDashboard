@@ -58,7 +58,10 @@
         <EditForm Model="Form" OnValidSubmit="() => OnSave.InvokeAsync()">
             <DataAnnotationsValidator />
 
-            <TaskFields @ref="fields" Form="Form" />
+            @* Quick-add rides on the same flag as the preset picker: both are
+               ways of filling a new task faster, and neither belongs in an
+               edit dialog, where the fields already hold committed values. *@
+            <TaskFields @ref="fields" Form="Form" QuickAddEnabled="ShowPresetPicker" />
 
             <ValidationSummary />
 
@@ -155,6 +158,10 @@
         Form.EstimatedMinutes = preset.EstimatedTime is { } estimate
             ? (int)Math.Round(estimate.TotalMinutes)
             : null;
+
+        // The title box shows the line as typed, not Form.Title, so filling the
+        // form from here has to tell it to catch up.
+        fields?.SyncFromForm();
     }
 
     private Task HandlePresetKeyAsync(KeyboardEventArgs e)

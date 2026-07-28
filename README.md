@@ -68,6 +68,26 @@ added later by restoring their target frameworks in
   which the calendar's history layer draws instead of guessing from the
   estimate
 - Add, edit, and delete tasks — double-click a task or press **Edit** to change it inline
+- **Quick add**: type the whole task on one line and the fields fill themselves.
+  `Submit timesheet by fri 17:00 !high 45m` becomes a High-priority task called
+  *Submit timesheet*, due Friday at 17:00, estimated at 45 minutes. The fields
+  populate as you type so a mis-read is visible and correctable before saving,
+  a field you set by hand is never overwritten by later typing, and anything
+  unrecognised stays in the title. A **Quick add syntax** link in the dialog
+  lists the whole grammar:
+
+  | Syntax | Meaning |
+  | --- | --- |
+  | `by fri 17:00`, `due tomorrow` | Deadline |
+  | `after mon 09:00`, `from tomorrow` | Earliest start the planner may use |
+  | `!low` `!normal` `!high` `!urgent` (or `!l` `!n` `!h` `!u`) | Priority |
+  | `45m` `2h` `1h30` | Estimate — a unit is required, so a bare number stays in the title |
+  | `today` `tomorrow` `fri` `next tue` | Days; alone, a day means the end of it for a deadline and the start of it for an earliest start |
+  | `31/7` `15 aug` `2026-08-15` | Dates, read **day-first** |
+  | `17:00` `5pm` `5:30pm` | Times; a bare number is never read as a time |
+
+  Quick add is offered when adding a task, not when editing one — an existing
+  title is text you already committed to
 - **Presets** for the tasks you add over and over: a saved title, priority and
   estimate. The add dialog searches them as you type — choose one and the
   fields fill, with Enter applying the top match. A preset deliberately stores
@@ -131,9 +151,7 @@ added later by restoring their target frameworks in
 
 ## Roadmap
 
-- **Quick-add parsing**: type "dentist tue 15:00 30m high" and get the task —
-  a deterministic parser, no model, fully testable
-- **Local AI assistant** (after quick-add): an optional, downloaded on-device
+- **Local AI assistant**: an optional, downloaded on-device
   model for conversational task management ("push everything low-priority to
   next week"), schema-constrained so it can only emit actions the app already
   has, with the deterministic planner staying in charge of scheduling
@@ -175,6 +193,8 @@ Requires the .NET 10 SDK with the `maui-windows` and `android` workloads
 | `TaskDashboard/Components/Pages/CalendarPage.razor` | The week-timeline calendar |
 | `design-system/` | Self-contained component previews, published to Claude Design |
 | `TaskDashboard/Components/Pages/BlockedTimePage.razor` | Blocked-time management |
+| `TaskDashboard/Services/QuickAdd.cs` | The one-line task parser — pure, clock injected |
+| `tools/QuickAddTests/` | Unit tests for the parser, run against a frozen clock |
 | `TaskDashboard/Models/TaskPreset.cs` | A saved title, priority and estimate — no dates by design |
 | `TaskDashboard/Components/Pages/PresetsPage.razor` | Preset management, at `/presets` |
 | `TaskDashboard/Components/Pages/SettingsPage.razor` | Display preferences, at `/settings` |
@@ -205,6 +225,16 @@ from the task, the kind of reminder and its fire time, so moving a deadline
 replaces that task's alarm rather than stacking a second one on top of it, and
 deleting a task cancels its alarm. Android asks for notification permission on
 first launch; declining leaves the rest of the app fully usable.
+
+The quick-add parser is the one piece with real unit tests, because it is the
+one piece that is pure: it takes a string and the current time and returns
+fields, touching nothing else. The clock is a parameter rather than something
+it reads, so "friday at 5pm, said on a Friday afternoon" is an ordinary test
+case instead of something that can only be observed on a Friday afternoon:
+
+```bash
+dotnet run --project tools/QuickAddTests
+```
 
 The UI is tested by driving the running native app over the Chrome DevTools
 Protocol, on both platforms:

@@ -313,6 +313,36 @@ await Step("nav: sidebar hides and returns", async () =>
     await WaitFor("getComputedStyle(document.querySelector('.sidebar')).display !== 'none'", "sidebar visible");
 });
 
+await Step("quick-add: a typed line fills the other fields", async () =>
+{
+    await NavTo("tasks", "Tasks");
+    await Click(".task-toolbar button");
+    await WaitFor("document.querySelector('.modal-panel')", "modal open");
+
+    // The title box parses on input, not change, so dispatch the event Blazor
+    // actually listens for here.
+    await TypeValue("#task-title", "Droid quickadd by tomorrow 17:00 !urgent 25m");
+    await WaitFor("document.querySelector('#task-priority').value === 'Urgent'", "priority filled");
+    await WaitFor("document.querySelector('#task-estimate').value === '25'", "estimate filled");
+    await WaitFor("document.querySelector('.quick-add-preview')", "preview shown");
+
+    await Click(".modal-panel button[type=submit]");
+    await WaitFor("!document.querySelector('.modal-panel')", "modal closed");
+    await WaitFor(
+        "[...document.querySelectorAll('.task-title')].some(e => e.innerText.trim() === 'Droid quickadd')",
+        "task stored with the stripped title");
+
+    // Remove it again: the verify mode asserts an exact task count, and this
+    // step is about the wiring, not about leaving another row behind.
+    await cdp.EvalAsync(
+        "[...document.querySelectorAll('.task-item')]" +
+        ".find(r => r.innerText.includes('Droid quickadd'))" +
+        ".querySelector('.btn-outline-danger').click()");
+    await WaitFor(
+        "![...document.querySelectorAll('.task-title')].some(e => e.innerText.includes('Droid quickadd'))",
+        "quick-add task removed");
+});
+
 await Step("calendar: zoom slider rescales the grid", async () =>
 {
     await NavTo("calendar", "Calendar");

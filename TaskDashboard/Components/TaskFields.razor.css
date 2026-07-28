@@ -19,3 +19,89 @@
 .task-fields .field-hint {
     color: var(--text-faint);
 }
+
+/* Quick-add styling lives here, not in TaskModal.razor.css: scoped CSS does
+   not reach elements rendered by a child component, and this markup is
+   TaskFields'. Putting it next to the modal's own rules looked right and
+   applied nothing at all. */
+
+.field-label-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.quick-add-help-toggle {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.quick-add-help-toggle:hover {
+    text-decoration: underline;
+}
+
+.quick-add-syntax {
+    margin-top: 0.4rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.4rem;
+    background: var(--chrome);
+    font-size: 0.72rem;
+    line-height: 1.35;
+}
+
+.quick-add-syntax-lede {
+    margin: 0 0 0.5rem;
+    color: var(--text-muted);
+}
+
+.quick-add-syntax dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.35rem 0.7rem;
+    margin: 0;
+}
+
+.quick-add-syntax dt {
+    margin: 0;
+}
+
+.quick-add-syntax dt code {
+    color: var(--accent);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.quick-add-syntax dd {
+    margin: 0;
+    color: var(--text-muted);
+}
+
+.quick-add-preview {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3rem;
+    margin-top: 0.3rem;
+    color: var(--text-faint);
+}
+
+.quick-add-title {
+    color: var(--text);
+    font-weight: 600;
+}
+
+.quick-add-chip {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 0.25rem;
+    padding: 0 0.3rem;
+    font-weight: 700;
+}
