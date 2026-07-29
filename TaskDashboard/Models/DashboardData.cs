@@ -42,6 +42,18 @@ public class DashboardData
     /// the property and default to shown.</summary>
     public bool ShowCalendarZoom { get; set; } = true;
 
+    /// <summary>How long the display is held awake while the dashboard is in
+    /// front: 0 never (the default, and what an older file deserializes to),
+    /// <see cref="KeepScreenOnAlways"/> for as long as the app is open, and any
+    /// positive value a number of minutes. Android only — see
+    /// <c>IScreenWakeService</c>.</summary>
+    public int KeepScreenOnMinutes { get; set; }
+
+    /// <summary>The sentinel <see cref="KeepScreenOnMinutes"/> uses for "no
+    /// expiry". Negative rather than a large number, so it cannot be confused
+    /// with a duration a user might pick.</summary>
+    public const int KeepScreenOnAlways = -1;
+
     /// <summary>Whether the calendar draws deadline markers. Toggled from the
     /// calendar's own control panel; persisted so a grid deliberately cleared of
     /// markers stays that way. Older files lack the property and default to

@@ -318,6 +318,34 @@ public class DashboardService
         await SaveAsync();
     }
 
+    /// <summary>The stored preference: 0 off, -1 always, else minutes. Clamped
+    /// to a day, because a slip of the keyboard should not mean a display that
+    /// is on until the app is closed a week later.</summary>
+    public int KeepScreenOnMinutes => data.KeepScreenOnMinutes == DashboardData.KeepScreenOnAlways
+        ? DashboardData.KeepScreenOnAlways
+        : Math.Clamp(data.KeepScreenOnMinutes, 0, MaxKeepScreenOnMinutes);
+
+    public const int MaxKeepScreenOnMinutes = 1440;
+
+    /// <summary>The preference as the screen-wake service wants it: null when
+    /// the display should be held with no expiry, <see cref="TimeSpan.Zero"/>
+    /// when it should not be held at all, else how long to hold it.</summary>
+    public TimeSpan? KeepScreenOnFor => KeepScreenOnMinutes switch
+    {
+        DashboardData.KeepScreenOnAlways => null,
+        var m => TimeSpan.FromMinutes(m),
+    };
+
+    public bool KeepScreenOnEnabled => KeepScreenOnMinutes != 0;
+
+    public async Task SetKeepScreenOnMinutesAsync(int minutes)
+    {
+        data.KeepScreenOnMinutes = minutes == DashboardData.KeepScreenOnAlways
+            ? DashboardData.KeepScreenOnAlways
+            : Math.Clamp(minutes, 0, MaxKeepScreenOnMinutes);
+        await SaveAsync();
+    }
+
     public bool ShowCalendarDeadlines => data.ShowCalendarDeadlines;
 
     public async Task SetShowCalendarDeadlinesAsync(bool shown)

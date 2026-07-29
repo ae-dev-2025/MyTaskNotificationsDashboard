@@ -22,6 +22,24 @@
 </div>
 
 <div class="planner-settings">
+    <label for="keep-awake">Keep the screen awake</label>
+    <select id="keep-awake"
+            class="form-select keep-awake-select"
+            value="@Dashboard.KeepScreenOnMinutes"
+            @onchange="OnKeepAwakeChangedAsync">
+        @foreach (var (minutes, label) in KeepAwakeChoices)
+        {
+            <option value="@minutes" selected="@(minutes == Dashboard.KeepScreenOnMinutes)">@label</option>
+        }
+    </select>
+    <small class="settings-hint">
+        Stops the display sleeping while the dashboard is on screen, so you can
+        leave it up and glance at it. The countdown restarts each time you come
+        back to the app. Android only — Windows keeps its own display settings.
+    </small>
+</div>
+
+<div class="planner-settings">
     <label class="settings-toggle">
         <input type="checkbox"
                checked="@Dashboard.CollapseNavToIcons"
@@ -35,7 +53,30 @@
 </div>
 
 @code {
+    /// <summary>The offered durations. Kept short and round rather than a free
+    /// number box: this is a "leave it up while I work" choice, not a value to
+    /// tune, and every entry has to read as an answer to how long the screen
+    /// stays on.</summary>
+    private static readonly (int Minutes, string Label)[] KeepAwakeChoices =
+    [
+        (0, "Never — use the device's own timeout"),
+        (5, "5 minutes"),
+        (15, "15 minutes"),
+        (30, "30 minutes"),
+        (60, "1 hour"),
+        (120, "2 hours"),
+        (DashboardData.KeepScreenOnAlways, "While the app is open"),
+    ];
+
     protected override Task OnInitializedAsync() => Dashboard.LoadAsync();
+
+    private async Task OnKeepAwakeChangedAsync(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var minutes))
+        {
+            await Dashboard.SetKeepScreenOnMinutesAsync(minutes);
+        }
+    }
 
     private async Task OnZoomVisibleChangedAsync(ChangeEventArgs e)
     {
