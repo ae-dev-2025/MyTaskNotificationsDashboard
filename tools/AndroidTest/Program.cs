@@ -15,8 +15,10 @@ using System.Text.Json;
 //   adb forward tcp:9333 localabstract:webview_devtools_remote_<pid>
 //
 // Usage: dotnet run --project tools/AndroidTest -- <suite|verify> [screenshotDir]
-//   suite  — resets data, exercises tasks/calendar/blocked/dashboard; leaves state
-//   verify — after force-stop + relaunch: asserts that state persisted
+//   suite   — resets data, exercises tasks/calendar/blocked/dashboard; leaves state
+//   verify  — after force-stop + relaunch: asserts that state persisted
+//   wake    — sets the keep-awake preference to "while the app is open"
+//   wakeoff — sets it back to never; both pair with a dumpsys check (see below)
 
 var mode = args.Length > 0 ? args[0] : "suite";
 var shotDir = args.Length > 1 ? args[1] : ".";
@@ -171,6 +173,46 @@ if (mode == "verify")
     });
 
     await Shot("droid-9-verify.png");
+    Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
+    return failures == 0 ? 0 : 1;
+}
+
+// Sets the keep-awake preference through the real Settings UI. The window flag
+// it drives is native, so CDP cannot see it — pair each run with
+//   adb shell dumpsys window windows | Select-String KEEP_SCREEN_ON
+// which is the actual assertion. Split into two modes rather than a toggle so
+// the flag can be observed in both states.
+if (mode is "wake" or "wakeoff")
+{
+    // wake takes the duration as an optional third argument (-1, the default,
+    // is "while the app is open"), so the timed expiry can be driven too.
+    var minutes = mode == "wakeoff" ? "0" : args.Length > 2 ? args[2] : "-1";
+    var what = minutes switch
+    {
+        "0" => "released",
+        "-1" => "held while the app is open",
+        var m => $"held for {m} minutes",
+    };
+
+    await Step($"keep awake: preference set to {what}", async () =>
+    {
+        await WaitFor("document.querySelector('h1')", "app rendered");
+        await NavTo("settings", "Settings");
+        await SetValue(".keep-awake-select", minutes);
+        await WaitFor(
+            $"document.querySelector('.keep-awake-select').value === '{minutes}'",
+            "select shows the new duration");
+    });
+
+    await Step("keep awake: the choice survives leaving the page", async () =>
+    {
+        await NavTo("tasks", "Tasks");
+        await NavTo("settings", "Settings");
+        await WaitFor(
+            $"document.querySelector('.keep-awake-select').value === '{minutes}'",
+            "select still shows the duration");
+    });
+
     Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
     return failures == 0 ? 0 : 1;
 }

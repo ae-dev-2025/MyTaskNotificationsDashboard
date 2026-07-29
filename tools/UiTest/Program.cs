@@ -139,6 +139,17 @@ if (mode == "verify")
         Expect(Row("Buy milk").Locator(".estimate")).ToHaveTextAsync(new Regex("15m")));
     await Step("persisted: footer totals restored", () =>
         Expect(footer).ToContainTextAsync("1 task left"));
+    await Step("persisted: keep-awake duration survived restart", async () =>
+    {
+        await NavTo("Settings", "Settings");
+        await Expect(page.Locator(".keep-awake-select")).ToHaveValueAsync("15");
+
+        // Back to off, so no later mode runs against a machine being held
+        // awake by a fixture — and so the next suite run sees the default.
+        await page.Locator(".keep-awake-select").SelectOptionAsync("0");
+        await Expect(page.Locator(".keep-awake-select")).ToHaveValueAsync("0");
+        await NavTo("Tasks", "Tasks");
+    });
     await Shot("ui-verify-restart.png");
     Console.WriteLine(failures == 0 ? "ALL PASS" : $"{failures} FAILURE(S)");
     return failures == 0 ? 0 : 1;
@@ -1455,6 +1466,19 @@ await Step("nav: icons setting collapses to a rail instead", async () =>
 
     await NavTo("Settings", "Settings");
     await page.GetByLabel("Collapse the sidebar to icons").ClickAsync();
+    await NavTo("Tasks", "Tasks");
+});
+
+await Step("keep awake: the duration can be chosen", async () =>
+{
+    await NavTo("Settings", "Settings");
+    // Off by default, so nobody's display behaviour changes by upgrading.
+    await Expect(page.Locator(".keep-awake-select")).ToHaveValueAsync("0");
+
+    await page.Locator(".keep-awake-select").SelectOptionAsync("15");
+    await Expect(page.Locator(".keep-awake-select")).ToHaveValueAsync("15");
+
+    // Left at 15 on purpose: `verify` asserts it came back after a restart.
     await NavTo("Tasks", "Tasks");
 });
 await Shot("ui-04-final.png");

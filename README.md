@@ -128,6 +128,12 @@ added later by restoring their target frameworks in
   on their titles — text wraps to as many whole lines as the block affords.
   Zooming keeps the moment at the centre of the view where you left it, and
   the slider can be hidden from the Settings page
+- **Keep the screen awake** (Android): the dashboard is meant to be glanced at,
+  and a tablet propped on a desk sleeps mid-glance. Settings offers a duration —
+  5 minutes through 2 hours, or for as long as the app is open — and the
+  countdown restarts each time you come back to the app. Off by default. It is
+  a window flag rather than a wake lock, so it costs nothing once the app is
+  behind something else and cannot leave the tablet awake if the app dies
 - **Collapsible navigation**: a full-height handle on the sidebar's edge
   hides it for a wider calendar and brings it back with one click, always
   from the same spot

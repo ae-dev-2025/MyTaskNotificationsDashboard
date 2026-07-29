@@ -33,6 +33,16 @@ public static class MauiProgram
 #endif
 		builder.Services.AddSingleton<NotificationCoordinator>();
 
+		// Holding the display awake is a window flag on the Android activity;
+		// Windows has no equivalent the unpackaged app can use, so the setting
+		// is readable and writable everywhere but only acts on Android.
+#if ANDROID
+		builder.Services.AddSingleton<IScreenWakeService, Platforms.Android.AndroidScreenWakeService>();
+#else
+		builder.Services.AddSingleton<IScreenWakeService, NullScreenWakeService>();
+#endif
+		builder.Services.AddSingleton<ScreenWakeCoordinator>();
+
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();
 		builder.Logging.AddDebug();
